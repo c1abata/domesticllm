@@ -1,0 +1,27 @@
+# Model weights and interrupted downloads never belong in Git.
+models/quarantine/
+models/**/*.gguf
+models/**/*.gguf.*
+
+# Local secrets and generated runtime state.
+*.env.local
+*.key
+*.pem
+*.p12
+lan.host
+evidence/
+checkpoints/
+.venv/
+.venv-mcp/
+__pycache__/
+*.pyc
+build/
+dist/
+artifacts/
+benchmarks/results/
+.git.empty.backup-*/
+
+# Editor and OS noise.
+.DS_Store
+Thumbs.db
+*.swp

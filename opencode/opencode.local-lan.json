@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "local-llama/local-main",
+  "small_model": "local-llama/local-small",
+  "shell": "/bin/bash",
+  "provider": {
+    "local-llama": {
+      "name": "LAN llama.cpp CPU poor hardware",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "{env:LOCAL_AI_BASE_URL}",
+        "apiKey": "{env:LOCAL_AI_API_KEY}",
+        "timeout": 900000,
+        "chunkTimeout": 90000
+      },
+      "models": {
+        "local-main": {"name": "Local GGUF main", "limit": {"context": 4096, "output": 1536}},
+        "local-small": {"name": "Local GGUF small", "limit": {"context": 2048, "output": 768}}
+      }
+    }
+  },
+  "agent": {
+    "plan-local": {
+      "description": "Planning agent: read-only analysis, no writes.",
+      "mode": "subagent",
+      "prompt": "{file:./agents/plan-local.md}",
+      "model": "local-llama/local-small",
+      "tools": {"read": true, "grep": true, "glob": true, "list": true, "write": false, "edit": false, "bash": false}
+    },
+    "build-local": {
+      "description": "Implementation agent for small controlled patches.",
+      "mode": "subagent",
+      "prompt": "{file:./agents/build-local.md}",
+      "model": "local-llama/local-main",
+      "tools": {"read": true, "grep": true, "glob": true, "list": true, "write": "ask", "edit": "ask", "bash": "ask"}
+    }
+  },
+  "compaction": {"auto": true, "prune": true, "reserved": 1024},
+  "snapshot": false,
+  "watcher": {"ignore": [".git/**", "node_modules/**", "dist/**", "build/**", ".venv/**", "venv/**", "__pycache__/**", "*.gguf", "*.bin", "*.sqlite", "*.db"]}
+}

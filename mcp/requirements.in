@@ -1,0 +1,2 @@
+# Direct dependency. Regenerate the lock only at a reviewed human gate.
+mcp==1.28.1

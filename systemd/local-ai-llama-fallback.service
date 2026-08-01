@@ -1,0 +1,73 @@
+[Unit]
+Description=llama.cpp CUDA fallback on loopback port 8084
+After=network.target
+Wants=network.target
+ConditionFileIsExecutable=/opt/local-ai/llama-current/bin/llama-server
+
+[Service]
+Type=simple
+User=localai
+Group=localai
+UMask=0027
+EnvironmentFile=/etc/local-ai-ds4-nvidia.env
+Environment=LD_LIBRARY_PATH=/opt/local-ai/llama-current/lib
+WorkingDirectory=/opt/local-ai
+ExecStart=/opt/local-ai/llama-current/bin/llama-server \
+  --host 127.0.0.1 \
+  --port 8084 \
+  --api-key-file ${LOCAL_AI_API_KEY_FILE} \
+  --model ${LOCAL_AI_MODEL} \
+  --threads ${LOCAL_AI_THREADS} \
+  --threads-batch ${LOCAL_AI_THREADS_BATCH} \
+  --ctx-size ${LOCAL_AI_CTX} \
+  --n-predict ${LOCAL_AI_PREDICT} \
+  --batch-size ${LOCAL_AI_BATCH} \
+  --ubatch-size ${LOCAL_AI_UBATCH} \
+  --parallel 1 \
+  --n-gpu-layers ${LOCAL_AI_N_GPU_LAYERS} \
+  --split-mode ${LOCAL_AI_SPLIT_MODE} \
+  --main-gpu ${LOCAL_AI_MAIN_GPU} \
+  --slots \
+  --slot-save-path ${LOCAL_AI_SLOT_SAVE_PATH} \
+  --cache-type-k ${LOCAL_AI_CACHE_TYPE_K} \
+  --cache-type-v ${LOCAL_AI_CACHE_TYPE_V} \
+  --no-ui
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=20min
+KillSignal=SIGINT
+TimeoutStopSec=5min
+LimitNOFILE=65535
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RemoveIPC=yes
+KeyringMode=private
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidia1 rw
+ReadOnlyPaths=/opt/local-ai/llama-releases /opt/local-ai/models
+ReadWritePaths=/var/cache/local-ai /var/log/local-ai
+
+# Intentionally no [Install] section: this shadow fallback is started on demand.

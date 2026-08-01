@@ -1,0 +1,9 @@
+name = "ops_executor"
+description = "Profilo operativo intenzionalmente disabilitato e non registrato."
+sandbox_mode = "read-only"
+approval_policy = "never"
+developer_instructions = """
+NON ESEGUIRE provisioning, restart, sudo, rete, firewall, download o cancellazioni.
+Questo profilo e una sentinella disabilitata: richiedi sempre un'approvazione umana
+esterna e termina senza effettuare operazioni.
+"""

@@ -1,0 +1,41 @@
+[Unit]
+Description=Authenticated DomesticLLM LAN gateway
+After=network.target local-ai-ds4-native.service
+Requires=local-ai-ds4-native.service
+
+[Service]
+Type=simple
+User=localai
+Group=localai
+UMask=0077
+ExecStart=/usr/local/libexec/local-ai/domesticllm-gateway --listen 0.0.0.0 --port 8080 --backend-host 127.0.0.1 --backend-port 8083 --api-key-file /etc/local-ai-gateway.key
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15s
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RemoveIPC=yes
+KeyringMode=private
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+
+[Install]
+WantedBy=multi-user.target

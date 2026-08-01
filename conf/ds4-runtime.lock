@@ -1,0 +1,18 @@
+# Immutable inputs for the native DS4 runtime. This is data, not a shell script.
+LOCK_SCHEMA=1
+DS4_REPO_URL=https://github.com/antirez/ds4.git
+DS4_COMMIT=54b36ed9ba42da31b24f2d1a5feb075c2475dbb1
+DS4_LICENSE=MIT
+DS4_BUILD_TARGET=cuda
+DS4_CUDA_ARCH=sm_86
+LLAMA_REPO_URL=https://github.com/ggml-org/llama.cpp.git
+LLAMA_COMMIT=876a4321163249c43ca4e986818fab5ab081f282
+LLAMA_LICENSE=MIT
+MODEL_REPOSITORY=huihui-ai/Huihui-DeepSeek-V4-Flash-abliterated-ds4-GGUF
+MODEL_REVISION=f06f59bce3c36b3282b75c9fe2621c83c9399d10
+MODEL_FILENAME=Huihui-DeepSeek-V4-Flash-BF16-abliterated-ds4-Q2.gguf
+MODEL_SHA256=0abedca3dc470460fd1a5eae8e155c30f14a6584c807674bb9dff3bcf4f9f3d9
+MODEL_SIZE_BYTES=86720111200
+MODEL_LICENSE=MIT
+MODEL_MINIMUM_RAM_GIB=112
+MODEL_RECOMMENDED_RAM_GIB=128

@@ -1,0 +1,56 @@
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.manager]
+description = "Coordina unita piccole e gate; non modifica codice."
+config_file = "agents/manager.toml"
+
+[agents.scout]
+description = "Analisi read-only del repository e delle dipendenze bloccate."
+config_file = "agents/scout.toml"
+
+[agents.builder]
+description = "Unico ruolo autorizzato a produrre patch nel workspace, senza rete o sudo."
+config_file = "agents/builder.toml"
+
+[agents.verifier]
+description = "Esegue soltanto controlli allowlist e restituisce evidenze."
+config_file = "agents/verifier.toml"
+
+[agents.security_reviewer]
+description = "Revisione read-only di supply chain, segreti, systemd e rete."
+config_file = "agents/security-reviewer.toml"
+
+[mcp_servers.local_ai]
+command = ".venv-mcp/bin/python"
+args = ["-B", "mcp/locked_launcher.py"]
+cwd = "."
+enabled = true
+required = true
+startup_timeout_sec = 15
+tool_timeout_sec = 240
+default_tools_approval_mode = "prompt"
+enabled_tools = ["repo_inventory", "repo_read", "repo_search", "repo_diff", "check_run", "inference_health", "inference_smoke", "inference_benchmark", "ops_logs"]
+
+[mcp_servers.local_ai.env]
+LOCAL_AI_REPO_ROOT = "."
+
+[mcp_servers.local_ai.tools.repo_inventory]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.repo_read]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.repo_search]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.repo_diff]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.check_run]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.inference_health]
+approval_mode = "approve"
+[mcp_servers.local_ai.tools.inference_smoke]
+approval_mode = "prompt"
+[mcp_servers.local_ai.tools.inference_benchmark]
+approval_mode = "prompt"
+[mcp_servers.local_ai.tools.ops_logs]
+approval_mode = "prompt"

@@ -1,0 +1,43 @@
+[Unit]
+Description=DwarfStar4-compatible Intel CPU inference server - llama.cpp GGUF profile
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=localai
+Group=localai
+EnvironmentFile=/etc/local-ai-ds4-intel.env
+WorkingDirectory=/opt/local-ai
+ExecStart=/opt/local-ai/bin/llama-server \
+  --host ${LOCAL_AI_HOST} \
+  --port ${LOCAL_AI_PORT} \
+  --api-key-file ${LOCAL_AI_API_KEY_FILE} \
+  -m ${LOCAL_AI_MODEL} \
+  --threads ${LOCAL_AI_THREADS} \
+  --threads-batch ${LOCAL_AI_THREADS_BATCH} \
+  --ctx-size ${LOCAL_AI_CTX} \
+  --n-predict ${LOCAL_AI_PREDICT} \
+  --batch-size ${LOCAL_AI_BATCH} \
+  --ubatch-size ${LOCAL_AI_UBATCH} \
+  --parallel ${LOCAL_AI_PARALLEL} \
+  --slots \
+  --slot-save-path ${LOCAL_AI_SLOT_SAVE_PATH} \
+  --cache-type-k ${LOCAL_AI_CACHE_TYPE_K} \
+  --cache-type-v ${LOCAL_AI_CACHE_TYPE_V} \
+  --cache-reuse ${LOCAL_AI_CACHE_REUSE} \
+  --keep ${LOCAL_AI_KEEP} \
+  ${LOCAL_AI_EXTRA_ARGS}
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/local-ai
+ReadWritePaths=/var/cache/local-ai /var/log/local-ai
+MemoryMax=infinity
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

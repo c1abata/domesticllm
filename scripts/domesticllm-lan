@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+host="${DOMESTICLLM_LAN_HOST:-}"
+host_file="${DOMESTICLLM_LAN_HOST_FILE:-$HOME/.config/domesticllm/lan.host}"
+if [ -z "$host" ] && [ -r "$host_file" ]; then
+  IFS= read -r host <"$host_file"
+fi
+[ -n "$host" ] || {
+  echo "Set DOMESTICLLM_LAN_HOST or write the server address to $host_file" >&2
+  exit 2
+}
+case "$host" in
+  *[!A-Za-z0-9.:-]*) echo "Invalid LAN host" >&2; exit 2 ;;
+esac
+export DOMESTICLLM_URL="${DOMESTICLLM_URL:-http://${host}:8080/v1/chat/completions}"
+export LOCAL_AI_API_KEY_FILE="${LOCAL_AI_API_KEY_FILE:-$HOME/.config/domesticllm/lan.key}"
+
+if command -v domesticllm-tui >/dev/null 2>&1; then
+  exec domesticllm-tui "$@"
+fi
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ROOT/scripts/domesticllm-tui.py" "$@"

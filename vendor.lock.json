@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "generated_at": "2026-07-13",
+  "policy": {
+    "floating_refs_forbidden": true,
+    "model_checksum_required": true,
+    "build_as_root_forbidden": true
+  },
+  "sources": {
+    "ds4": {
+      "url": "https://github.com/c1abata/ds4.git",
+      "upstream": "https://github.com/antirez/ds4.git",
+      "commit": "54b36ed9ba42da31b24f2d1a5feb075c2475dbb1",
+      "license": "MIT",
+      "cuda_arch": "sm_86"
+    },
+    "llama_cpp": {
+      "url": "https://github.com/ggml-org/llama.cpp.git",
+      "commit": "876a4321163249c43ca4e986818fab5ab081f282",
+      "license": "MIT"
+    },
+    "linenoise": {
+      "url": "https://github.com/c1abata/linenoise.git",
+      "upstream": "https://github.com/antirez/linenoise.git",
+      "commit": "a473823d74b93eab2ba83480df16ed37617493f2",
+      "license": "BSD-2-Clause"
+    },
+    "sds": {
+      "url": "https://github.com/c1abata/sds.git",
+      "upstream": "https://github.com/antirez/sds.git",
+      "commit": "5347739b1581fcba74fd5cab1fc21d2aef317d71",
+      "license": "BSD-2-Clause"
+    }
+  },
+  "python": {
+    "mcp": {
+      "version": "1.28.1",
+      "constraint": "mcp==1.28.1",
+      "wheel_sha256": "2726bca5e7193f61c5dde8b12500a6de2d9acf6d1a1c0be9e8c2e706437991df",
+      "license": "MIT"
+    }
+  },
+  "models": {
+    "deepseek_v4_flash_q2_imatrix": {
+      "repository": "antirez/deepseek-v4-gguf",
+      "revision": "c198a70525f1856f1bf50448f163471692c881f8",
+      "filename": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf",
+      "sha256": "a02f4e9ed0f7cd4d51b79ccb21e72a9fd17b5104a14361c9a333798d4e6ea5c8",
+      "size_bytes": 86720111488,
+      "license": "MIT",
+      "minimum_ram_gib": 112,
+      "recommended_ram_gib": 128
+    },
+    "deepseek_v4_flash_abliterated_q2": {
+      "repository": "huihui-ai/Huihui-DeepSeek-V4-Flash-abliterated-ds4-GGUF",
+      "revision": "f06f59bce3c36b3282b75c9fe2621c83c9399d10",
+      "filename": "Huihui-DeepSeek-V4-Flash-BF16-abliterated-ds4-Q2.gguf",
+      "sha256": "0abedca3dc470460fd1a5eae8e155c30f14a6584c807674bb9dff3bcf4f9f3d9",
+      "size_bytes": 86720111200,
+      "license": "MIT",
+      "minimum_ram_gib": 112,
+      "recommended_ram_gib": 128,
+      "risk": "experimental abliterated weights; controlled local use only"
+    }
+  }
+}

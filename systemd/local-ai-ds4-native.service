@@ -1,0 +1,68 @@
+[Unit]
+Description=Native DwarfStar4 CUDA inference canary
+After=network.target
+Wants=network.target
+ConditionPathIsSymbolicLink=/opt/local-ai/current
+
+[Service]
+Type=simple
+User=localai
+Group=localai
+UMask=0027
+EnvironmentFile=/etc/local-ai-ds4-runtime.env
+WorkingDirectory=/opt/local-ai/current
+ExecStartPre=/usr/local/libexec/local-ai/ds4-health preflight
+ExecStart=/opt/local-ai/current/bin/ds4-server \
+  --cuda \
+  --model ${DS4_MODEL} \
+  --host ${DS4_HOST} \
+  --port ${DS4_PORT} \
+  --ctx ${DS4_CONTEXT} \
+  --tokens ${DS4_TOKENS} \
+  --threads ${DS4_THREADS} \
+  --power ${DS4_POWER} \
+  --ssd-streaming \
+  --ssd-streaming-cache-experts ${DS4_SSD_STREAMING_CACHE_EXPERTS} \
+  --kv-disk-dir ${DS4_KV_DISK_DIR} \
+  --kv-disk-space-mb ${DS4_KV_DISK_SPACE_MB} \
+  --kv-cache-reject-different-quant
+ExecStartPost=/usr/local/libexec/local-ai/ds4-health wait
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=20min
+TimeoutStopSec=2min
+LimitNOFILE=65535
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RemoveIPC=yes
+KeyringMode=private
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidia1 rw
+ReadOnlyPaths=/opt/local-ai/releases /opt/local-ai/models
+ReadWritePaths=/var/cache/local-ai/ds4 /var/log/local-ai
+
+[Install]
+WantedBy=multi-user.target
