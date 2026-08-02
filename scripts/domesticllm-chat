@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -x "$BIN_DIR/domesticllm-tui" ]; then
+  exec "$BIN_DIR/domesticllm-tui" --chat "$@"
+fi
+ROOT="$(cd "$BIN_DIR/.." && pwd)"
+exec python3 "$ROOT/scripts/domesticllm-tui.py" --chat "$@"

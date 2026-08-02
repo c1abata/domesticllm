@@ -18,6 +18,7 @@ import urllib.parse
 
 DEFAULT_URL = "http://127.0.0.1:8083/v1/chat/completions"
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+CHAT_MODELS = {"deepseek-v4-flash", "mistral-small", "dolphin", "qwen3-coder", "cyber-uncensored"}
 
 
 def positive_int(value: str) -> int:
@@ -53,6 +54,31 @@ def load_key() -> str | None:
 def terminal_safe(value: str) -> str:
     """Keep readable text while removing terminal control sequences."""
     return "".join(char for char in value if char in "\n\t" or ord(char) >= 32 and ord(char) != 127)
+
+
+def build_payload(model: str, prompt: str, max_tokens: int, temperature: float,
+                  reasoning: str, messages: list[dict] | None = None) -> dict:
+    conversation = messages if messages is not None else [{"role": "user", "content": prompt}]
+    payload = {"model": model, "messages": conversation,
+               "max_tokens": max_tokens, "max_completion_tokens": max_tokens,
+               "temperature": temperature,
+               "stream": True, "stream_options": {"include_usage": True}}
+    if reasoning == "direct":
+        payload["thinking"] = {"type": "disabled"}
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
+    else:
+        payload["reasoning_effort"] = reasoning
+    return payload
+
+
+def trim_history(messages: list[dict], context: int, max_tokens: int) -> int:
+    """Drop complete oldest turns using a conservative character/token estimate."""
+    char_budget = max(1024, (context - min(max_tokens, context // 2)) * 3)
+    removed = 0
+    while len(messages) > 2 and sum(len(item["content"]) for item in messages) > char_budget:
+        del messages[:2]
+        removed += 1
+    return removed
 
 
 def request_worker(url: str, payload: dict, key: str | None, events: queue.Queue, holder: dict) -> None:
@@ -127,7 +153,7 @@ def render(state: dict, interactive: bool) -> None:
         phase = "POSSIBILE STALLO"
     elif phase in {"PREFILL", "IN CODA / PREFILL"} and since_event >= state["slow"]:
         phase = "DS4 ATTIVO · CODA/PREFILL/THINKING"
-    glyph = "✓" if phase == "COMPLETATO" else "✗" if phase == "ERRORE" else SPINNER[int(elapsed * 8) % len(SPINNER)]
+    glyph = "✓" if phase == "COMPLETATO" else "⚠" if phase == "TRONCATO" else "✗" if phase == "ERRORE" else SPINNER[int(elapsed * 8) % len(SPINNER)]
     usage = state["usage"]
     prompt_tokens = usage.get("prompt_tokens") or state["prompt_estimate"]
     completion_tokens = usage.get("completion_tokens") or state["delta_events"]
@@ -143,7 +169,7 @@ def render(state: dict, interactive: bool) -> None:
     filled = round(bar_width * percent / 100)
     bar = "█" * filled + "░" * (bar_width - filled)
     lines = [
-        f" DomesticLLM · DS4 Flash   {glyph} {phase}",
+        f" DomesticLLM · {state['model']}   {glyph} {phase}",
         "─" * width,
         f" sessione  {state['session']}   modello  {state['model']}",
         f" endpoint  {state['url']}   HTTP  {state.get('http_status') or '—'}",
@@ -163,39 +189,26 @@ def render(state: dict, interactive: bool) -> None:
     if interactive:
         sys.stderr.write("\x1b[H\x1b[2J" + screen)
         sys.stderr.flush()
-    elif now - state.get("last_plain_render", 0) >= 5 or phase in {"COMPLETATO", "ERRORE"}:
+    elif now - state.get("last_plain_render", 0) >= 5 or phase in {"COMPLETATO", "TRONCATO", "ERRORE"}:
         sys.stderr.write(f"[{elapsed:6.1f}s] {phase}; ultimo evento {since_event:.1f}s; output≈{completion_tokens}; {rate:.2f} tok/s\n")
         sys.stderr.flush()
         state["last_plain_render"] = now
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="TUI streaming per DomesticLLM/DS4")
-    parser.add_argument("prompt", nargs="*", help="domanda; se omessa viene letta da stdin")
-    parser.add_argument("--url", default=os.environ.get("DOMESTICLLM_URL", DEFAULT_URL))
-    parser.add_argument("--model", default=os.environ.get("DOMESTICLLM_MODEL", "deepseek-v4-flash"))
-    parser.add_argument("--max-tokens", type=positive_int, default=positive_int(os.environ.get("DOMESTICLLM_MAX_TOKENS", "512")))
-    parser.add_argument("--temperature", type=float, default=float(os.environ.get("DOMESTICLLM_TEMPERATURE", "0.15")))
-    parser.add_argument("--context", type=positive_int, default=positive_int(os.environ.get("DOMESTICLLM_CONTEXT", "100000")))
-    parser.add_argument("--show-reasoning", action="store_true", default=os.environ.get("DOMESTICLLM_SHOW_REASONING") == "1")
-    args = parser.parse_args()
-    try:
-        validate_url(args.url)
-        key = load_key()
-    except (OSError, ValueError) as exc:
-        parser.error(str(exc))
-    prompt = " ".join(args.prompt) if args.prompt else (sys.stdin.read() if not sys.stdin.isatty() else "")
-    if not prompt.strip():
-        parser.error("fornire un prompt come argomento o tramite stdin")
-    payload = {"model": args.model, "messages": [{"role": "user", "content": prompt}],
-               "max_tokens": args.max_tokens, "max_completion_tokens": args.max_tokens,
-               "temperature": args.temperature,
-               "stream": True, "stream_options": {"include_usage": True}}
+def run_turn(args: argparse.Namespace, key: str | None, messages: list[dict]) -> tuple[int, str, dict]:
+    """Stream one turn and return its exit code, answer and usage."""
+    removed = trim_history(messages, args.context, args.max_tokens)
+    if removed:
+        print(f"[DomesticLLM] contesto: rimossi {removed} turni meno recenti.", file=sys.stderr)
+    prompt = messages[-1]["content"]
+    payload = build_payload(args.model, prompt, args.max_tokens, args.temperature,
+                            args.reasoning, messages)
     started = time.monotonic()
     state = {"started": started, "last_event": started, "phase": "CONNESSIONE", "url": args.url,
-             "model": args.model, "session": f"{int(time.time()):x}-{os.getpid():x}", "context": args.context,
-             "prompt_estimate": max(1, len(prompt) // 4), "usage": {}, "content": "", "reasoning": "",
-             "sse_events": 0, "delta_events": 0, "malformed": 0,
+             "model": args.model, "session": args.session, "context": args.context,
+             "prompt_estimate": max(1, sum(len(item["content"]) for item in messages) // 4),
+             "usage": {}, "content": "", "reasoning": "", "sse_events": 0,
+             "delta_events": 0, "malformed": 0,
              "slow": float(os.environ.get("DOMESTICLLM_SLOW_SECONDS", "45")),
              "stall": float(os.environ.get("DOMESTICLLM_STALL_SECONDS", "600"))}
     events: queue.Queue = queue.Queue()
@@ -234,7 +247,8 @@ def main() -> int:
                 elif kind == "error":
                     state["phase"], error, finished = "ERRORE", data, True
                 elif kind == "done":
-                    state["phase"], finished = "COMPLETATO", True
+                    state["phase"] = "TRONCATO" if state.get("finish_reason") == "length" else "COMPLETATO"
+                    finished = True
             except queue.Empty:
                 pass
             render(state, interactive)
@@ -246,23 +260,120 @@ def main() -> int:
         render(state, interactive)
     finally:
         if interactive:
-            time.sleep(0.4)
+            time.sleep(0.2)
             sys.stderr.write("\x1b[?25h\x1b[?1049l")
             sys.stderr.flush()
     if error:
         print(f"Errore: {terminal_safe(error)}", file=sys.stderr)
-        return 1
+        return 1, "", state["usage"]
     answer = state["content"] or state["reasoning"]
     if args.show_reasoning and state["reasoning"] and state["content"]:
         answer = state["reasoning"] + "\n\n" + state["content"]
     if not answer:
         print("Errore: stream completato senza contenuto", file=sys.stderr)
-        return 1
-    print(terminal_safe(answer) if sys.stdout.isatty() else answer)
+        return 1, "", state["usage"]
+    answer = terminal_safe(answer)
+    print(answer)
     usage = state["usage"]
-    print(f"[DS4] completato in {time.monotonic()-started:.1f}s; prompt={usage.get('prompt_tokens', '?')}; "
+    print(f"[DomesticLLM/{args.model}] completato in {time.monotonic()-started:.1f}s; prompt={usage.get('prompt_tokens', '?')}; "
           f"output={usage.get('completion_tokens', state['delta_events'])}; finish={state.get('finish_reason', '?')}", file=sys.stderr)
-    return 0
+    if state.get("finish_reason") == "length":
+        print(f"[DomesticLLM/{args.model}] ATTENZIONE: risposta troncata; usa /tokens per aumentare il limite.", file=sys.stderr)
+        return 3, answer, usage
+    return 0, answer, usage
+
+
+def chat_command(line: str, args: argparse.Namespace, messages: list[dict]) -> tuple[bool, bool]:
+    """Handle a local slash command. Returns (handled, continue_chat)."""
+    command, _, value = line.partition(" ")
+    value = value.strip()
+    if command in {"/exit", "/quit"}:
+        return True, False
+    if command == "/help":
+        print("/clear  /model NOME  /reasoning direct|high|max  /tokens N  /status  /exit")
+    elif command == "/clear":
+        messages.clear()
+        print("Contesto azzerato.")
+    elif command == "/status":
+        print(f"sessione={args.session} modello={args.model} turni={len(messages)//2} "
+              f"messaggi={len(messages)} max_tokens={args.max_tokens} reasoning={args.reasoning}")
+    elif command == "/model" and value in CHAT_MODELS:
+        args.model = value
+        messages.clear()
+        print(f"Modello impostato a {value}; contesto azzerato.")
+    elif command == "/model":
+        print("Modello non valido: deepseek-v4-flash, mistral-small, dolphin, qwen3-coder oppure cyber-uncensored.")
+    elif command == "/reasoning" and value in {"direct", "high", "max"}:
+        args.reasoning = value
+        print(f"Reasoning impostato a {value}.")
+    elif command == "/tokens" and value:
+        try:
+            args.max_tokens = positive_int(value)
+            print(f"Limite risposta impostato a {args.max_tokens} token.")
+        except (ValueError, argparse.ArgumentTypeError):
+            print("Valore non valido: usare un intero maggiore di zero.")
+    else:
+        print("Comando non riconosciuto. Usa /help.")
+    return True, True
+
+
+def interactive_chat(args: argparse.Namespace, key: str | None) -> int:
+    messages: list[dict] = []
+    print(f"DomesticLLM chat · {args.model} · sessione {args.session}")
+    print("Scrivi un messaggio; /help mostra i comandi, /exit termina.")
+    while True:
+        try:
+            line = input("\ntu> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nSessione terminata.")
+            return 0
+        if not line:
+            continue
+        if line.startswith("/"):
+            _, keep_going = chat_command(line, args, messages)
+            if not keep_going:
+                return 0
+            continue
+        messages.append({"role": "user", "content": line})
+        code, answer, _ = run_turn(args, key, messages)
+        if answer:
+            messages.append({"role": "assistant", "content": answer})
+        else:
+            messages.pop()
+        if code == 1:
+            print("La sessione resta attiva: correggi o riprova il messaggio.", file=sys.stderr)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Chat/TUI streaming per DomesticLLM")
+    parser.add_argument("prompt", nargs="*", help="domanda spot; se omessa apre la chat su terminale")
+    parser.add_argument("--chat", action="store_true",
+                        help="forza la sessione persistente anche senza pseudo-terminale")
+    parser.add_argument("--url", default=os.environ.get("DOMESTICLLM_URL", DEFAULT_URL))
+    parser.add_argument("--model", default=os.environ.get("DOMESTICLLM_MODEL", "deepseek-v4-flash"))
+    parser.add_argument("--max-tokens", type=positive_int, default=positive_int(os.environ.get("DOMESTICLLM_MAX_TOKENS", "1024")))
+    parser.add_argument("--temperature", type=float, default=float(os.environ.get("DOMESTICLLM_TEMPERATURE", "0")))
+    parser.add_argument("--reasoning", choices=("direct", "high", "max"),
+                        default=os.environ.get("DOMESTICLLM_REASONING", "direct"),
+                        help="direct disabilita il thinking; high/max lo abilitano")
+    parser.add_argument("--context", type=positive_int, default=positive_int(os.environ.get("DOMESTICLLM_CONTEXT", "100000")))
+    parser.add_argument("--show-reasoning", action="store_true", default=os.environ.get("DOMESTICLLM_SHOW_REASONING") == "1")
+    args = parser.parse_args()
+    args.session = f"{int(time.time()):x}-{os.getpid():x}"
+    try:
+        validate_url(args.url)
+        key = load_key()
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
+    if args.chat and args.prompt:
+        parser.error("--chat non accetta un prompt iniziale; scriverlo nella sessione")
+    if args.chat or (not args.prompt and sys.stdin.isatty()):
+        return interactive_chat(args, key)
+    prompt = " ".join(args.prompt) if args.prompt else sys.stdin.read()
+    if not prompt.strip():
+        parser.error("fornire un prompt come argomento o tramite stdin")
+    code, _, _ = run_turn(args, key, [{"role": "user", "content": prompt}])
+    return code
 
 
 if __name__ == "__main__":

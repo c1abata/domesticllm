@@ -1,5 +1,23 @@
 # Model policy
 
+## Coding canary selected with llmfit
+
+`Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf` is the coding canary for
+GPU1. llmfit 1.1.6 ranked the model first for coding but proposed Q8_0 using an
+active-parameter memory estimate; the real Q8 file does not fit one A4500.
+DomesticLLM therefore pins Q4_K_XL and starts at 16k context. Promotion requires
+measured VRAM, token rate, tool-call schema, multi-turn edits and rollback.
+
+AirLLM-style layer streaming is reserved for capacity experiments. It is not
+used on the interactive coding lane because disk/PCIe transfer is repeated per
+layer and token; DS4 expert streaming already covers the large-model capacity
+case with a purpose-built narrow runtime.
+
+`Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf` is the restricted cybersecurity
+chat profile. It is pinned by revision and SHA-256, has no safety guardrails,
+and is not eligible as an agent backend. Use it only for authorized local
+security research. The sole agent backend is native DS4 Flash.
+
 Poor-hardware experimental lane: use q2 first and q3 as the hard ceiling.
 Treat q4/q5/q6 as legacy, small-model fallback, or explicit workstation/server
 experiments only.

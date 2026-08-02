@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${TMUX:-}" ] && [ -t 0 ]; then
+  command -v tmux >/dev/null || { echo "tmux non installato" >&2; exit 1; }
+  exec tmux new-session -A -s ds4 -- "$0"
+fi
+
+ds4_agent=/opt/local-ai/current/bin/ds4-agent
+llama_cli=/opt/local-ai/llama-current/bin/llama-cli
+lock="${XDG_RUNTIME_DIR:-/tmp}/domesticllm-console-${UID}.lock"
+model=ds4
+context=32768
+temperature=0
+reasoning=normal
+power=100
+gpu=0
+threads=16
+
+declare -A model_file=(
+  [qwen]='/opt/local-ai/models/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf'
+  [mistral]='/opt/local-ai/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf'
+  [dolphin]='/opt/local-ai/models/cognitivecomputations_Dolphin3.0-Mistral-24B-Q4_K_M.gguf'
+  [cyber]='/opt/local-ai/models/Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf'
+)
+
+help_text() {
+  cat <<'EOF'
+/models                    modelli disponibili
+/model NOME                ds4 | qwen | mistral | dolphin | cyber
+/ctx TOKEN                 contesto (4096..100000; llama max 32768)
+/temperature N             temperatura (0..2)
+/reasoning MODO            direct | normal | max
+/power N                   carico DS4 (1..100)
+/gpu N                     GPU fisica 0 oppure 1
+/threads N                 thread CPU (1..32)
+/status                    configurazione e GPU
+/run                       avvia chat/agente selezionato
+/help                      mostra questi comandi
+/exit                      chiude la console
+Dentro DS4: /save /list /switch /compact /history /new /power /exit
+EOF
+}
+
+show_models() {
+  printf '%-9s %s\n' ds4 'DeepSeek V4 Flash, agente nativo con tool e KV persistente'
+  printf '%-9s %s\n' qwen 'Qwen3 Coder 30B-A3B, coding veloce'
+  printf '%-9s %s\n' mistral 'Mistral Small 24B, general purpose'
+  printf '%-9s %s\n' dolphin 'Dolphin 3.0 24B, uncensored general purpose'
+  printf '%-9s %s\n' cyber 'Dolphin3 Cyber 8B, uncensored cybersecurity'
+}
+
+status() {
+  printf 'model=%s ctx=%s temperature=%s reasoning=%s power=%s gpu=%s threads=%s\n' \
+    "$model" "$context" "$temperature" "$reasoning" "$power" "$gpu" "$threads"
+  nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
+    --format=csv,noheader 2>/dev/null || true
+}
+
+run_selected() {
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo "/run richiede un terminale interattivo; avvia semplicemente: ds4" >&2
+    return 2
+  fi
+  exec 9>"$lock"
+  flock -n 9 || { echo "un'altra inferenza locale e' attiva" >&2; return 1; }
+  if [ "$model" = ds4 ]; then
+    args=(--cuda --model /opt/local-ai/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf
+      --ctx "$context" --threads "$threads" --power "$power" --ssd-streaming
+      --ssd-streaming-cache-experts 6GB --prefill-chunk 2048 --chdir "$PWD")
+    case "$reasoning" in
+      direct) args+=(--nothink) ;;
+      normal) args+=(--think) ;;
+      max) args+=(--think-max) ;;
+    esac
+    CUDA_VISIBLE_DEVICES="$gpu" "$ds4_agent" "${args[@]}"
+  else
+    [ -r "${model_file[$model]}" ] || { echo "modello non leggibile: ${model_file[$model]}" >&2; return 1; }
+    llama_reasoning=on
+    template_kwargs='{"enable_thinking":true}'
+    if [ "$reasoning" = direct ]; then
+      llama_reasoning=off
+      template_kwargs='{"enable_thinking":false}'
+    fi
+    LD_LIBRARY_PATH=/opt/local-ai/llama-current/lib CUDA_VISIBLE_DEVICES="$gpu" \
+      "$llama_cli" --model "${model_file[$model]}" --conversation --jinja \
+      --ctx-size "$context" --threads "$threads" --threads-batch "$threads" \
+      --temperature "$temperature" --reasoning "$llama_reasoning" \
+      --chat-template-kwargs "$template_kwargs" --n-gpu-layers 999 \
+      --split-mode none --main-gpu 0 --cache-type-k q8_0 --cache-type-v q8_0 \
+      --no-display-prompt
+  fi
+}
+
+echo 'DomesticLLM · console locale DS4'
+echo 'Scrivi /help. Seleziona con /model, avvia con /run.'
+status
+while IFS= read -r -e -p 'ds4> ' line; do
+  command=${line%% *}
+  value=${line#"$command"}
+  value=${value# }
+  case "$command" in
+    /models) show_models ;;
+    /model)
+      case "$value" in
+        ds4) model=ds4; context=32768 ;;
+        qwen|mistral|dolphin|cyber) model=$value; context=16384 ;;
+        *) echo "modello non valido" >&2; continue ;;
+      esac
+      echo "model=$model ctx=$context"
+      ;;
+    /ctx)
+      if ! [[ "$value" =~ ^[0-9]+$ ]] || (( value < 4096 || value > 100000 )); then echo "ctx non valido" >&2; continue; fi
+      if [ "$model" != ds4 ] && (( value > 32768 )); then echo "ctx llama massimo 32768" >&2; continue; fi
+      context=$value
+      ;;
+    /temperature)
+      [[ "$value" =~ ^([0-9]+([.][0-9]+)?|[.][0-9]+)$ ]] || { echo "temperatura non valida" >&2; continue; }
+      awk -v value="$value" 'BEGIN { exit !(value >= 0 && value <= 2) }' || { echo "temperatura non valida" >&2; continue; }
+      temperature=$value
+      ;;
+    /reasoning) case "$value" in direct|normal|max) reasoning=$value ;; *) echo "reasoning non valido" >&2 ;; esac ;;
+    /power)
+      if [[ "$value" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 100 )); then power=$value; else echo "power non valido" >&2; fi
+      ;;
+    /gpu) case "$value" in 0|1) gpu=$value ;; *) echo "gpu non valida" >&2 ;; esac ;;
+    /threads)
+      if [[ "$value" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 32 )); then threads=$value; else echo "threads non valido" >&2; fi
+      ;;
+    /status) status ;;
+    /run) run_selected ;;
+    /help) help_text ;;
+    /exit|/quit) exit 0 ;;
+    '') ;;
+    *) echo "comando non valido; usa /help" >&2 ;;
+  esac
+done

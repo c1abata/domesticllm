@@ -7,6 +7,7 @@ import argparse
 import hmac
 import http.client
 import http.server
+import json
 import os
 import socket
 import threading
@@ -14,6 +15,42 @@ import urllib.parse
 
 HOP_HEADERS = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
                "te", "trailers", "transfer-encoding", "upgrade"}
+
+
+def read_chunked(stream, max_body: int) -> bytes:
+    body = bytearray()
+    while True:
+        line = stream.readline(129)
+        if not line or len(line) > 128 or not line.endswith(b"\r\n"):
+            raise ValueError("invalid chunk framing")
+        try:
+            size = int(line[:-2].split(b";", 1)[0], 16)
+        except ValueError as exc:
+            raise ValueError("invalid chunk size") from exc
+        if size < 0 or len(body) + size > max_body:
+            raise OverflowError("request too large")
+        if size == 0:
+            while True:
+                trailer = stream.readline(8193)
+                if not trailer or len(trailer) > 8192:
+                    raise ValueError("invalid chunk trailer")
+                if trailer == b"\r\n":
+                    return bytes(body)
+        chunk = stream.read(size)
+        if len(chunk) != size or stream.read(2) != b"\r\n":
+            raise ValueError("incomplete chunk")
+        body.extend(chunk)
+
+
+def backend_port_for_request(default_port: int, fast_port: int | None,
+                             fast_models: set[str], body: bytes | None) -> int:
+    if not body or not fast_port:
+        return default_port
+    try:
+        model = json.loads(body).get("model")
+    except (AttributeError, json.JSONDecodeError, UnicodeDecodeError):
+        return default_port
+    return fast_port if model in fast_models else default_port
 
 
 class Gateway(http.server.BaseHTTPRequestHandler):
@@ -30,8 +67,10 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+        self.close_connection = True
 
     def _authorized(self) -> bool:
         supplied = self.headers.get("Authorization", "")
@@ -52,6 +91,7 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         if parsed.query or parsed.fragment or not (parsed.path == "/health" or parsed.path.startswith("/v1/")):
             self._json_error(404, "route not available")
             return
+        transfer_encoding = self.headers.get("Transfer-Encoding", "").casefold()
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -60,16 +100,28 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         if length < 0 or length > self.server.max_body:
             self._json_error(413, "request too large")
             return
-        if not self.server.slots.acquire(blocking=False):
-            self._json_error(429, "model is busy")
-            return
         backend = None
+        acquired = False
         try:
-            body = self.rfile.read(length) if length else None
-            backend = http.client.HTTPConnection(self.server.backend_host, self.server.backend_port,
+            if transfer_encoding:
+                if transfer_encoding != "chunked" or self.headers.get("Content-Length"):
+                    raise ValueError("unsupported request framing")
+                body = read_chunked(self.rfile, self.server.max_body)
+            else:
+                body = self.rfile.read(length) if length else None
+            acquired = self.server.slots.acquire(timeout=self.server.timeout)
+            if not acquired:
+                self._json_error(429, "model is busy")
+                return
+            backend_port = backend_port_for_request(
+                self.server.backend_port, self.server.fast_backend_port,
+                self.server.fast_models, body)
+            backend = http.client.HTTPConnection(self.server.backend_host, backend_port,
                                                  timeout=self.server.timeout)
             headers = {name: value for name, value in self.headers.items()
                        if name.lower() not in HOP_HEADERS | {"authorization", "host", "content-length"}}
+            if backend_port == self.server.fast_backend_port:
+                headers["Authorization"] = "Bearer " + self.server.api_key
             if body is not None:
                 headers["Content-Length"] = str(len(body))
             backend.request(self.command, parsed.path, body=body, headers=headers)
@@ -98,7 +150,7 @@ class Gateway(http.server.BaseHTTPRequestHandler):
             self.close_connection = True
         except (BrokenPipeError, ConnectionResetError):
             pass
-        except (OSError, http.client.HTTPException) as exc:
+        except (ValueError, OverflowError, OSError, http.client.HTTPException) as exc:
             if not self.wfile.closed:
                 try:
                     self._json_error(502, "backend unavailable")
@@ -108,7 +160,8 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         finally:
             if backend:
                 backend.close()
-            self.server.slots.release()
+            if acquired:
+                self.server.slots.release()
 
 
 class Server(http.server.ThreadingHTTPServer):
@@ -133,6 +186,8 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--backend-host", default="127.0.0.1")
     parser.add_argument("--backend-port", type=int, default=8083)
+    parser.add_argument("--fast-backend-port", type=int)
+    parser.add_argument("--fast-models", default="mistral-small,dolphin,qwen3-coder,cyber-uncensored")
     parser.add_argument("--api-key-file", required=True)
     parser.add_argument("--max-body", type=int, default=16 * 1024 * 1024)
     parser.add_argument("--timeout", type=int, default=1800)
@@ -144,6 +199,8 @@ def main() -> int:
     server.api_key = key
     server.backend_host = args.backend_host
     server.backend_port = args.backend_port
+    server.fast_backend_port = args.fast_backend_port
+    server.fast_models = {model.strip() for model in args.fast_models.split(",") if model.strip()}
     server.max_body = args.max_body
     server.timeout = args.timeout
     server.slots = threading.BoundedSemaphore(1)

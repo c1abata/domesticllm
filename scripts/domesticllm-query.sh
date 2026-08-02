@@ -10,8 +10,9 @@ Uso:
 Variabili opzionali:
   DOMESTICLLM_URL          endpoint OpenAI-compatible (default: loopback DS4)
   DOMESTICLLM_MODEL        modello richiesto (default: deepseek-v4-flash)
-  DOMESTICLLM_MAX_TOKENS   token di completamento (default: 512)
-  DOMESTICLLM_TEMPERATURE  temperatura (default: 0.15)
+  DOMESTICLLM_MAX_TOKENS   token di completamento (default: 1024)
+  DOMESTICLLM_TEMPERATURE  temperatura (default: 0)
+  DOMESTICLLM_REASONING    direct, high o max (default: direct)
   DOMESTICLLM_SHOW_REASONING=1 mostra anche il ragionamento del modello
 EOF
 }
@@ -35,8 +36,9 @@ fi
 
 url="${DOMESTICLLM_URL:-http://127.0.0.1:8083/v1/chat/completions}"
 model="${DOMESTICLLM_MODEL:-deepseek-v4-flash}"
-max_tokens="${DOMESTICLLM_MAX_TOKENS:-512}"
-temperature="${DOMESTICLLM_TEMPERATURE:-0.15}"
+max_tokens="${DOMESTICLLM_MAX_TOKENS:-1024}"
+temperature="${DOMESTICLLM_TEMPERATURE:-0}"
+reasoning="${DOMESTICLLM_REASONING:-direct}"
 case "$max_tokens" in
   ''|*[!0-9]*|0) echo "Errore: DOMESTICLLM_MAX_TOKENS deve essere un intero positivo" >&2; exit 2 ;;
 esac
@@ -44,13 +46,20 @@ if ! jq -en --argjson value "$temperature" '$value | numbers' >/dev/null 2>&1; t
   echo "Errore: DOMESTICLLM_TEMPERATURE deve essere un numero" >&2
   exit 2
 fi
+case "$reasoning" in
+  direct|high|max) ;;
+  *) echo "Errore: DOMESTICLLM_REASONING deve essere direct, high o max" >&2; exit 2 ;;
+esac
 
 request="$(mktemp)"
 response="$(mktemp)"
 trap 'rm -f "$request" "$response"' EXIT
 jq -n --arg prompt "$prompt" --arg model "$model" \
+  --arg reasoning "$reasoning" \
   --argjson max_tokens "$max_tokens" --argjson temperature "$temperature" \
-  '{model:$model,messages:[{role:"user",content:$prompt}],max_tokens:$max_tokens,temperature:$temperature}' \
+  '{model:$model,messages:[{role:"user",content:$prompt}],max_tokens:$max_tokens,temperature:$temperature}
+   + if $reasoning == "direct" then {thinking:{type:"disabled"}}
+     else {reasoning_effort:$reasoning} end' \
   >"$request"
 
 curl_args=(--fail-with-body --silent --show-error --connect-timeout 5 --data-binary "@$request"
@@ -73,6 +82,11 @@ elif [ -n "${LOCAL_AI_API_KEY:-}" ]; then
   printf 'header = "Authorization: Bearer %s"\n' "$LOCAL_AI_API_KEY" | curl --config - "${curl_args[@]}" >"$response"
 else
   curl "${curl_args[@]}" >"$response"
+fi
+finish_reason="$(jq -r '.choices[0].finish_reason // empty' "$response")"
+if [ "$finish_reason" = length ]; then
+  echo "Attenzione: risposta troncata dal limite token; aumentare DOMESTICLLM_MAX_TOKENS." >&2
+  exit 3
 fi
 
 error="$(jq -r '.error.message // empty' "$response")"

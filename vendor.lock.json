@@ -51,6 +51,52 @@
       "minimum_ram_gib": 112,
       "recommended_ram_gib": 128
     },
+    "mistral_small_3_1_24b_q4_k_m": {
+      "repository": "bartowski/mistralai_Mistral-Small-3.1-24B-Instruct-2503-GGUF",
+      "revision": "f73dfd9e812922fb503a993e3fa5671424f486d3",
+      "filename": "mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf",
+      "sha256": "c5743c1bf39db0ae8a5ade5df0374b8e9e492754a199cfdad7ef393c1590f7c0",
+      "size_bytes": 14333910496,
+      "license": "Apache-2.0",
+      "runtime": "llama.cpp",
+      "profile": "fast-general"
+    },
+    "dolphin_3_0_mistral_24b_q4_k_m": {
+      "repository": "bartowski/cognitivecomputations_Dolphin3.0-Mistral-24B-GGUF",
+      "revision": "e06c915c2847a92c183407f4b5b9efb51af882a1",
+      "upstream_repository": "dphn/Dolphin3.0-Mistral-24B",
+      "upstream_revision": "65e9d03d587dfbfdee82b5ba067758a14c05a301",
+      "filename": "cognitivecomputations_Dolphin3.0-Mistral-24B-Q4_K_M.gguf",
+      "sha256": "6f193bbf98628140194df257c7466e2c6f80a7ef70a6ebae26c53b2f2ef21994",
+      "size_bytes": 14333925664,
+      "license": "NOASSERTION",
+      "runtime": "llama.cpp",
+      "profile": "restricted-uncensored",
+      "risk": "upstream model card does not declare a license; controlled local evaluation only"
+    },
+    "qwen3_coder_30b_a3b_q4_k_xl": {
+      "repository": "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+      "revision": "b17cb02dd882d5b6ab62fc777ad2995f19668350",
+      "upstream_repository": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      "filename": "Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf",
+      "sha256": "2841aa314d916434860cfb8990347528dcdfe5c350dbcb9d1461dbee88ff2533",
+      "size_bytes": 17665334432,
+      "license": "Apache-2.0",
+      "runtime": "llama.cpp",
+      "profile": "agentic-coding-canary",
+      "selection": "llmfit 1.1.6 coding rank corrected from impossible Q8_0 to GPU-resident Q4_K_XL"
+    },
+    "dolphin3_cyber_8b_abliterated_q4_k_m": {
+      "repository": "RavichandranJ/Dolphin3-Cyber-8B-GGUF",
+      "revision": "145d66f096c8a99aad63be19ada1fbc46d3230bd",
+      "filename": "Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf",
+      "sha256": "73da18db1557e19e8ec2d6c1e8ef08e182c735d72f3bd526f6940f4fec96c1cb",
+      "size_bytes": 4920745984,
+      "license": "Llama-3.1-Community",
+      "runtime": "llama.cpp",
+      "profile": "restricted-cybersecurity-uncensored",
+      "risk": "uncensored specialist with no safety guardrails; authorized local security work only"
+    },
     "deepseek_v4_flash_abliterated_q2": {
       "repository": "huihui-ai/Huihui-DeepSeek-V4-Flash-abliterated-ds4-GGUF",
       "revision": "f06f59bce3c36b3282b75c9fe2621c83c9399d10",

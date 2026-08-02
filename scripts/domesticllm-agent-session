@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+unit=local-ai-ds4-native.service
+gateway_unit=domesticllm-lan-gateway.service
+binary=/opt/local-ai/current/bin/ds4-agent
+model=/opt/local-ai/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf
+lock=/run/lock/domesticllm-agent.lock
+operator=${SUDO_USER:-}
+workdir=${1:-}
+shift || true
+
+[ "$(id -u)" -eq 0 ] || { echo "run through domesticllm-agent" >&2; exit 1; }
+[ -n "$operator" ] && [ "$operator" != root ] || { echo "missing non-root operator" >&2; exit 1; }
+[ -d "$workdir" ] || { echo "invalid working directory: $workdir" >&2; exit 2; }
+[ -x "$binary" ] || { echo "DS4 agent binary unavailable: $binary" >&2; exit 1; }
+[ -r "$model" ] || { echo "DS4 model unavailable: $model" >&2; exit 1; }
+operator_home=$(getent passwd "$operator" | cut -d: -f6)
+[ -n "$operator_home" ] && [ -d "$operator_home" ] || { echo "invalid operator home" >&2; exit 1; }
+
+exec 9>"$lock"
+flock -n 9 || { echo "another native DS4 agent session is active" >&2; exit 3; }
+server_was_active=false
+gateway_was_active=false
+if systemctl is-active --quiet "$gateway_unit"; then
+  gateway_was_active=true
+fi
+if systemctl is-active --quiet "$unit"; then
+  server_was_active=true
+  systemctl stop "$unit"
+fi
+cleanup() {
+  if $server_was_active; then
+    systemctl start "$unit" || echo "CRITICAL: failed to restore $unit" >&2
+  fi
+  if $gateway_was_active; then
+    systemctl start "$gateway_unit" || echo "CRITICAL: failed to restore $gateway_unit" >&2
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+agent_args=(
+  --cuda
+  --model "$model"
+  --ctx 32768
+  --threads 16
+  --power 100
+  --ssd-streaming
+  --ssd-streaming-cache-experts 6GB
+  --prefill-chunk 2048
+  --chdir "$workdir"
+)
+if [ "${1:-}" = --direct ]; then
+  agent_args+=(--nothink)
+  shift
+fi
+if [ "${1:-}" = run ]; then
+  shift
+  [ "$#" -gt 0 ] || { echo "usage: domesticllm-agent run PROMPT" >&2; exit 2; }
+  agent_args+=(--non-interactive --nothink --prompt "$*")
+elif [ "$#" -ne 0 ]; then
+  echo "usage: domesticllm-agent [--direct] [run PROMPT]" >&2
+  exit 2
+fi
+
+runuser -u "$operator" -- env HOME="$operator_home" CUDA_VISIBLE_DEVICES=0 \
+  "$binary" "${agent_args[@]}"
