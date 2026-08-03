@@ -1,0 +1,4 @@
+# Narrow privilege boundary: the root-owned helper only switches between the
+# DS4 server and the native agent, then runs all agent tools as ale.
+ale ALL=(root) NOPASSWD: /usr/local/sbin/domesticllm-agent-session *
+ale ALL=(root) NOPASSWD: /usr/local/sbin/domesticllm-model *

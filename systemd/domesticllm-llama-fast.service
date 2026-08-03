@@ -1,0 +1,74 @@
+[Unit]
+Description=DomesticLLM fast lane on dedicated GPU1
+After=network.target
+Wants=network.target
+ConditionFileIsExecutable=/opt/local-ai/llama-current/bin/llama-server
+
+[Service]
+Type=simple
+User=localai
+Group=localai
+UMask=0027
+EnvironmentFile=/etc/domesticllm-llama-fast.env
+Environment=LD_LIBRARY_PATH=/opt/local-ai/llama-current/lib
+WorkingDirectory=/opt/local-ai
+ExecStart=/opt/local-ai/llama-current/bin/llama-server \
+  --host 127.0.0.1 \
+  --port 8085 \
+  --api-key-file /etc/local-ai-gateway.key \
+  --model ${LOCAL_AI_MODEL} \
+  --alias ${LOCAL_AI_MODEL_ALIAS} \
+  --threads ${LOCAL_AI_THREADS} \
+  --threads-batch ${LOCAL_AI_THREADS_BATCH} \
+  --ctx-size ${LOCAL_AI_CTX} \
+  --n-predict ${LOCAL_AI_PREDICT} \
+  --batch-size ${LOCAL_AI_BATCH} \
+  --ubatch-size ${LOCAL_AI_UBATCH} \
+  --parallel 1 \
+  --n-gpu-layers ${LOCAL_AI_N_GPU_LAYERS} \
+  --split-mode none \
+  --main-gpu 0 \
+  --cache-type-k ${LOCAL_AI_CACHE_TYPE_K} \
+  --cache-type-v ${LOCAL_AI_CACHE_TYPE_V} \
+  --cache-reuse 256 \
+  --no-ui
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=20min
+KillSignal=SIGINT
+TimeoutStopSec=5min
+LimitNOFILE=65535
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RemoveIPC=yes
+KeyringMode=private
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidia1 rw
+ReadOnlyPaths=/opt/local-ai/llama-releases /opt/local-ai/models
+ReadWritePaths=/var/cache/local-ai /var/log/local-ai
+
+[Install]
+WantedBy=multi-user.target

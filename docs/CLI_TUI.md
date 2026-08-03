@@ -43,8 +43,52 @@ Per DS4 nativo usare la TUI streaming, che resta visibile anche durante il
 prefill e segnala un possibile stallo senza terminare un'elaborazione lenta:
 
 ```bash
-domesticllm-tui "Spiega una skip list"
+domesticllm-lan
 ```
+
+Sull'host di inferenza, oppure attraverso un comando SSH che non assegna un
+pseudo-terminale, usare la modalita' esplicita:
+
+```bash
+domesticllm-chat --model deepseek-v4-flash
+# equivalente: domesticllm-tui --chat --model deepseek-v4-flash
+```
+
+`--chat` non dipende da `isatty()`: la sessione resta aperta finche' riceve
+`/exit`, Ctrl-D oppure la connessione SSH viene chiusa.
+
+Senza argomenti apre una chat persistente multi-turno: la cronologia rimane
+soltanto nella memoria del processo e viene eliminata alla chiusura. Comandi
+locali: `/help`, `/clear`, `/status`, `/model NOME`, `/reasoning direct|high|max`,
+`/tokens N` e `/exit`. Il vecchio uso spot resta disponibile passando il prompt
+come argomento, quindi script e pipe esistenti non cambiano comportamento.
+
+Modelli disponibili attraverso lo stesso gateway:
+
+```bash
+# DeepSeek V4, reasoning e tool calling
+domesticllm-lan --model deepseek-v4-flash "Analizza il problema"
+
+# Mistral 24B sulla fast lane GPU1
+domesticllm-lan --model mistral-small "Risposta interattiva rapida"
+
+# Dolphin 24B: disponibile solo quando selezionato esplicitamente
+domesticllm-lan --model dolphin "Richiesta nel profilo locale controllato"
+```
+
+Mistral e Dolphin condividono la GPU1 e non vengono eseguiti insieme. Il
+profilo attivo si seleziona con `sudo domesticllm-model mistral` oppure
+`sudo domesticllm-model dolphin`. `sudo domesticllm-model stop` libera GPU1.
+DS4 continua a usare GPU0. Il tool calling rimane sul profilo DS4: il GGUF
+Mistral e il parser llama.cpp verificati in questo kit sono accettati per chat
+e RAG, non ancora per la conversione affidabile in `tool_calls` OpenAI.
+
+La modalita' predefinita e' `direct`: disabilita il thinking nascosto, usa
+temperatura zero e concede fino a 1024 token. Per problemi che richiedono
+ragionamento esplicito usare `--reasoning high` o `--reasoning max` e aumentare
+`--max-tokens`. Se DS4 termina con `finish_reason=length`, la TUI mostra
+`TRONCATO`, stampa un avviso ed esce con codice 3 invece di presentare una
+risposta incompleta come completata.
 
 La schermata mostra fase (`CONNESSIONE`, `IN CODA / PREFILL`, `GENERAZIONE`),
 tempo dall'ultimo evento, TTFT, occupazione stimata

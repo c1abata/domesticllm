@@ -4,10 +4,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 DomesticLLM is a reproducible, operator-controlled local inference stack for
-running DeepSeek V4 Flash on workstation-class hardware. It combines the native
-[DwarfStar4](https://github.com/antirez/ds4) CUDA runtime with an independently
-deployable `llama.cpp` fallback, an authenticated LAN gateway, and a streaming
-terminal UI that makes long prefill and thinking phases visible.
+running DeepSeek V4 Flash and a small, curated model set on workstation-class
+hardware. It combines the native [DwarfStar4](https://github.com/antirez/ds4)
+CUDA runtime with a pinned `llama.cpp` fallback behind one persistent local
+console: `ds4`.
 
 The project favors plain C, Python/Bash from the standard system toolchain,
 systemd hardening, pinned revisions, explicit checksums, and reversible releases.
@@ -16,26 +16,14 @@ Model weights are never stored in this repository.
 ## Architecture
 
 ```text
-LAN client
-  domesticllm-lan / domesticllm-tui
-          │ Bearer authentication
-          ▼
-  0.0.0.0:8080  DomesticLLM gateway
-          │ fixed loopback backend
-          ▼
-  127.0.0.1:8083  native DS4 CUDA
-          │
-          ├── verified GGUF on RAM/NVMe
-          ├── SSD expert streaming + disk KV cache
-          └── dedicated NVIDIA GPU
-
-  127.0.0.1:8084  llama.cpp rollback path (inactive by default)
+ds4 (persistent tmux console)
+  ├── DeepSeek V4 Flash → native DwarfStar4, SSD expert streaming, persistent KV
+  └── Qwen / Mistral / Dolphin / Cyber → pinned llama.cpp fallback
 ```
 
-The gateway requires a high-entropy token and is constrained by systemd to an
-operator-supplied LAN CIDR. DS4 itself remains on loopback. For untrusted
-networks, use an SSH tunnel or add TLS; bearer authentication over plain HTTP
-does not prevent LAN traffic interception.
+No web server or unauthenticated LAN listener is required. The console prevents
+two large model processes from starting concurrently and exposes model,
+context, reasoning, temperature, GPU, CPU-thread and power controls in-session.
 
 ## Validated profile
 
@@ -52,29 +40,22 @@ NVIDIA RTX A4500 GPUs (`sm_86`):
 See [vendor.lock.json](vendor.lock.json) for all immutable source/model inputs.
 Hardware results are evidence for this profile, not a guarantee for other hosts.
 
-## Terminal UI
-
-The dependency-free TUI streams responses and shows connection, queue,
-prefill/thinking, TTFT, context usage, cache tokens, output tokens, decode rate,
-last activity, completion, errors, and a conservative stall warning.
+## Unified console
 
 ```bash
-domesticllm-tui "Explain a skip list"
+ds4
 ```
 
-For a configured LAN client:
+Inside the console, use `/models`, `/model NAME`, `/status` and `/run`.
+The first invocation creates a persistent `tmux` session; subsequent invocations
+reattach to it. Use `/help` for the complete command set.
+
+Install the unified entry point after the pinned runtimes and verified models
+are present:
 
 ```bash
-mkdir -p ~/.config/domesticllm
-chmod 700 ~/.config/domesticllm
-printf '%s\n' SERVER_LAN_IP > ~/.config/domesticllm/lan.host
-chmod 600 ~/.config/domesticllm/lan.host ~/.config/domesticllm/lan.key
-domesticllm-lan "Explain a skip list"
+sudo bash scripts/25_install_unified_ds4.sh
 ```
-
-The API key belongs in `~/.config/domesticllm/lan.key`; never pass it as a
-command-line argument. See [docs/CLI_TUI.md](docs/CLI_TUI.md) for environment
-variables and non-interactive operation.
 
 ## Build and install
 
@@ -93,8 +74,8 @@ sudo bash scripts/15_install_ds4_native.sh \
   --artifact /path/to/artifacts \
   --start-canary
 
-# Explicitly enable authenticated LAN access for one CIDR.
-sudo bash scripts/21_install_lan_gateway.sh --lan-cidr YOUR_LAN_CIDR
+# Install the single local operator interface; network services stay disabled.
+sudo bash scripts/25_install_unified_ds4.sh
 ```
 
 The model downloader rejects unexpected size or SHA-256 and quarantines partial
@@ -142,6 +123,17 @@ retained in `vendor.lock.json`.
 
 The exact revisions are recorded in [vendor.lock.json](vendor.lock.json).
 Upstream names and trademarks remain the property of their respective owners.
+
+## Credits
+
+DomesticLLM exists thanks to [Salvatore Sanfilippo (antirez)](https://github.com/antirez),
+whose DwarfStar4 work, source code and practical approach to local inference
+provided both the technical foundation and the engineering spirit of this
+project.
+
+Special thanks also go to the friend of the project who generously donated the
+workstation used to build, tune and validate DomesticLLM. That contribution
+turned the project from an idea into a tested local-inference system.
 
 ## Security and responsible operation
 

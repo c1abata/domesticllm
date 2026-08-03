@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+profiles=/usr/local/libexec/local-ai/conf
+environment=/etc/domesticllm-llama-fast.env
+unit=domesticllm-llama-fast.service
+
+[ "$(id -u)" -eq 0 ] || { echo "run with sudo" >&2; exit 1; }
+case "${1:-}" in
+  mistral) source_file="$profiles/llama-fast-mistral.env" ;;
+  dolphin) source_file="$profiles/llama-fast-dolphin.env" ;;
+  qwen-coder) source_file="$profiles/llama-fast-qwen-coder.env" ;;
+  cyber-uncensored) source_file="$profiles/llama-fast-cyber-uncensored.env" ;;
+  stop) systemctl disable --now "$unit"; exit ;;
+  status) systemctl --no-pager --full status "$unit"; exit ;;
+  *) echo "usage: domesticllm-model {mistral|dolphin|qwen-coder|cyber-uncensored|stop|status}" >&2; exit 2 ;;
+esac
+
+systemctl stop "$unit"
+install -o root -g localai -m 0640 "$source_file" "$environment"
+systemctl enable --now "$unit"

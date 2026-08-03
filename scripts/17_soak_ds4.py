@@ -57,9 +57,10 @@ def main():
             kind = "short"
             payload = {
                 "model": "deepseek-v4-flash",
-                "messages": [{"role": "user", "content": "Rispondi con una frase: sistema operativo."}],
+                "messages": [{"role": "user", "content": "Rispondi soltanto: OK"}],
                 "temperature": 0,
-                "max_tokens": 32,
+                "max_tokens": 16,
+                "thinking": {"type": "disabled"},
             }
             if iteration % 20 == 0:
                 kind = "kv-long"
@@ -99,6 +100,8 @@ def main():
                 )
                 if status != 200 or not body.get("choices"):
                     raise RuntimeError("invalid completion response")
+                if choice.get("finish_reason") == "length" and kind == "short":
+                    raise RuntimeError("short completion was truncated")
                 if kind == "tool":
                     calls = (choice.get("message") or {}).get("tool_calls") or []
                     if len(calls) != 1 or calls[0].get("function", {}).get("name") != "meteo":

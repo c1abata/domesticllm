@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+helper=/usr/local/sbin/domesticllm-agent-session
+export LOCAL_AI_API_KEY="${LOCAL_AI_API_KEY:-dsv4-local}"
+[ -x "$helper" ] || {
+  echo "helper DS4 nativo non installato: $helper" >&2
+  exit 1
+}
+[ -t 0 ] || [ "${1:-}" = run ] || {
+  echo "la sessione DS4 interattiva richiede un terminale; usare: domesticllm-agent run PROMPT" >&2
+  exit 2
+}
+if [ "${1:-}" = run ]; then
+  exec sudo "$helper" "$PWD" "$@"
+fi
+command -v tmux >/dev/null || { echo "tmux non installato" >&2; exit 1; }
+exec tmux new-session -A -s domesticllm-ds4 -- sudo "$helper" "$PWD" "$@"
