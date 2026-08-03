@@ -64,6 +64,7 @@ run_selected() {
   fi
   exec 9>"$lock"
   flock -n 9 || { echo "un'altra inferenza locale e' attiva" >&2; return 1; }
+  local rc=0
   if [ "$model" = ds4 ]; then
     args=(--cuda --model /opt/local-ai/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf
       --ctx "$context" --threads "$threads" --power "$power" --ssd-streaming
@@ -73,7 +74,7 @@ run_selected() {
       normal) args+=(--think) ;;
       max) args+=(--think-max) ;;
     esac
-    CUDA_VISIBLE_DEVICES="$gpu" "$ds4_agent" "${args[@]}"
+    CUDA_VISIBLE_DEVICES="$gpu" "$ds4_agent" "${args[@]}" || rc=$?
   else
     [ -r "${model_file[$model]}" ] || { echo "modello non leggibile: ${model_file[$model]}" >&2; return 1; }
     llama_reasoning=on
@@ -88,8 +89,14 @@ run_selected() {
       --temperature "$temperature" --reasoning "$llama_reasoning" \
       --chat-template-kwargs "$template_kwargs" --n-gpu-layers 999 \
       --split-mode none --main-gpu 0 --cache-type-k q8_0 --cache-type-v q8_0 \
-      --no-display-prompt
+      --no-display-prompt || rc=$?
   fi
+  flock -u 9
+  exec 9>&-
+  if (( rc != 0 )); then
+    echo "inferenza terminata con errore (rc=$rc); la console resta disponibile" >&2
+  fi
+  return 0
 }
 
 echo 'DomesticLLM · console locale DS4'
