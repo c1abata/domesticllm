@@ -16,6 +16,7 @@ from .bundle import create as bundle_create, import_bundle, recover as bundle_re
 from .cache import (checkpoint as cache_checkpoint, inspect as cache_inspect,
                     list_checkpoints, parse_size, prune as cache_prune,
                     restore as cache_restore, verify_checkpoint)
+from .benchmark import hardware_snapshot, plan as benchmark_plan, record as benchmark_record, run_request
 from .manifest import validate_manifest
 from .store import import_model, inspect_gguf, quarantine, verify_installed
 
@@ -136,6 +137,18 @@ def parser() -> argparse.ArgumentParser:
     tui = commands.add_parser("tui")
     tui.add_argument("arguments", nargs=argparse.REMAINDER)
     commands.add_parser("serve")
+    benchmark = commands.add_parser("benchmark")
+    benchmark_commands = benchmark.add_subparsers(dest="benchmark_command", required=True)
+    benchmark_commands.add_parser("plan")
+    run_benchmark = benchmark_commands.add_parser("run")
+    run_benchmark.add_argument("--model", required=True)
+    run_benchmark.add_argument("--url", default="http://127.0.0.1:8080/v1/chat/completions")
+    run_benchmark.add_argument("--key-file", required=True)
+    run_benchmark.add_argument("--prompt-file", required=True)
+    run_benchmark.add_argument("--context", type=int, required=True)
+    run_benchmark.add_argument("--max-tokens", type=int, default=256)
+    run_benchmark.add_argument("--iterations", type=int, default=3)
+    run_benchmark.add_argument("--output", required=True)
     return root
 
 
@@ -214,6 +227,24 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "serve":
             from .gateway import main as gateway_main
             return gateway_main([])
+        if args.command == "benchmark":
+            if args.benchmark_command == "plan":
+                print(json.dumps(benchmark_plan(), indent=2, sort_keys=True))
+                return 0
+            if args.iterations < 1 or args.iterations > 100 or args.context < 1 or args.max_tokens < 1:
+                raise PDS4Error("invalid benchmark iteration, context or token count")
+            prompt = pathlib.Path(args.prompt_file).read_bytes()
+            if len(prompt) > 1024 * 1024:
+                raise PDS4Error("benchmark prompt is too large")
+            hardware_before = hardware_snapshot()
+            measurements = [run_request(args.url, pathlib.Path(args.key_file), args.model, prompt,
+                                        args.context, args.max_tokens) for _ in range(args.iterations)]
+            hardware_after = hardware_snapshot()
+            result = benchmark_record(Paths.environment(), args.model, prompt, measurements,
+                                      [{"phase": "before", "gpus": hardware_before},
+                                       {"phase": "after", "gpus": hardware_after}], pathlib.Path(args.output))
+            print(result["id"])
+            return 0
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:
         print(f"pds4: {exc}", file=sys.stderr)

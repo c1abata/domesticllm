@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "flash": [
+    {"name": "baseline-32k-6g", "context": 32768, "expert_cache": "6G", "sessions": 1},
+    {"name": "canary-32k-8g", "context": 32768, "expert_cache": "8G", "sessions": 1},
+    {"name": "canary-64k", "context": 65536, "expert_cache": "calibrated", "sessions": 1},
+    {"name": "soak-100k", "context": 100000, "expert_cache": "calibrated", "sessions": 1}
+  ],
+  "fast": [
+    {"name": "qwen-resident-16k", "model": "qwen3-coder-q4", "context": 16384, "gpu_resident": true},
+    {"name": "mistral-resident-16k", "model": "mistral-small-q4", "context": 16384, "gpu_resident": true}
+  ],
+  "partial_cpu_offload": {"status": "experimental"}
+}
