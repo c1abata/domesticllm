@@ -1,0 +1,15 @@
+[Unit]
+Description=DomesticLLM LAN gateway and Web UI
+After=domesticllm-ds4.service domesticllm-fast.service
+Wants=domesticllm-ds4.service domesticllm-fast.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/domesticllm
+ExecStart=/usr/bin/python3 %h/domesticllm/scripts/domesticllm-gateway.py --listen 0.0.0.0 --port 8080 --backend-host 127.0.0.1 --backend-port 8083 --fast-backend-port 8085 --fast-models dolphin,qwen,cyber-uncensored --web-root %h/domesticllm/web --default-concurrency 1 --fast-concurrency 1 --api-key-file %h/.config/domesticllm/gateway.key --timeout 1800
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65535
+
+[Install]
+WantedBy=default.target

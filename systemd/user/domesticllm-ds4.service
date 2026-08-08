@@ -1,0 +1,18 @@
+[Unit]
+Description=DomesticLLM DeepSeek V4 Flash user runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/domesticllm/ds4.env
+WorkingDirectory=%h/domesticllm
+ExecStart=/opt/local-ai/current/bin/ds4-server --cuda --model ${DS4_MODEL} --host ${DS4_HOST} --port ${DS4_PORT} --ctx ${DS4_CONTEXT} --tokens ${DS4_TOKENS} --threads ${DS4_THREADS} --power ${DS4_POWER} --ssd-streaming --ssd-streaming-cache-experts ${DS4_SSD_STREAMING_CACHE_EXPERTS} --kv-disk-dir ${DS4_KV_DISK_DIR} --kv-disk-space-mb ${DS4_KV_DISK_SPACE_MB} --batched-session ${DS4_BATCHED_SESSIONS}
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30min
+TimeoutStopSec=2min
+LimitNOFILE=65535
+
+[Install]
+WantedBy=default.target
