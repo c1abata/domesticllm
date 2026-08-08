@@ -1,0 +1,45 @@
+[Unit]
+Description=PDS4 Flash lane
+After=local-fs.target
+ConditionPathIsSymbolicLink=/opt/pds4/current
+
+[Service]
+Type=simple
+User=pds4-flash
+Group=pds4-models
+UMask=0027
+EnvironmentFile=/etc/pds4/gpus.conf
+EnvironmentFile=/etc/pds4/lanes/flash.env
+WorkingDirectory=/opt/pds4/current
+ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FLASH_GPU} /opt/pds4/current/bin/ds4-server --cuda --model ${PDS4_FLASH_MODEL} --host 127.0.0.1 --port 8082 --ctx ${PDS4_FLASH_CONTEXT} --tokens ${PDS4_FLASH_TOKENS} --threads ${PDS4_FLASH_THREADS} --power ${PDS4_FLASH_POWER} --batched-session 1 --ssd-streaming --ssd-streaming-cache-experts ${PDS4_FLASH_EXPERT_CACHE} --kv-disk-dir /var/cache/pds4/kv/flash --kv-disk-space-mb ${PDS4_FLASH_KV_MIB} --kv-cache-reject-different-quant
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30min
+TimeoutStopSec=2min
+LimitNOFILE=65535
+MemoryHigh=112G
+MemoryMax=124G
+SyslogIdentifier=pds4-flash
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+ReadOnlyPaths=/opt/pds4 /srv/pds4
+ReadWritePaths=/var/cache/pds4/kv/flash
+
+[Install]
+WantedBy=multi-user.target

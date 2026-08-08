@@ -1,0 +1,28 @@
+[Unit]
+Description=PDS4 Flash canary
+Conflicts=pds4-flash.service
+After=local-fs.target
+
+[Service]
+Type=simple
+User=pds4-flash
+Group=pds4-models
+EnvironmentFile=/etc/pds4/gpus.conf
+EnvironmentFile=/etc/pds4/lanes/flash.env
+ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FLASH_GPU} /opt/pds4/current/bin/ds4-server --cuda --model ${PDS4_FLASH_MODEL} --host 127.0.0.1 --port 8083 --ctx ${PDS4_FLASH_CONTEXT} --tokens 512 --threads ${PDS4_FLASH_THREADS} --power ${PDS4_FLASH_POWER} --batched-session 1 --ssd-streaming --ssd-streaming-cache-experts ${PDS4_FLASH_EXPERT_CACHE} --kv-disk-dir /var/cache/pds4/kv/flash-canary --kv-disk-space-mb 1024
+MemoryMax=124G
+SyslogIdentifier=pds4-flash-canary
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+ReadOnlyPaths=/opt/pds4 /srv/pds4
+ReadWritePaths=/var/cache/pds4/kv/flash-canary

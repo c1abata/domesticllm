@@ -7,9 +7,9 @@ import sys
 import urllib.parse
 import urllib.request
 
-from .common import Paths, PDS4Error, read_json
+from .common import Paths, PDS4Error, read_json, sha256_file
+from .gpu import assign as assign_gpus, discover as discover_gpus
 from .manifest import validate_manifest
-from .common import sha256_file
 from .store import import_model, inspect_gguf, quarantine, verify_installed
 
 
@@ -81,6 +81,11 @@ def parser() -> argparse.ArgumentParser:
     fetch.add_argument("manifest")
     fetch.add_argument("--url", required=True)
     fetch.add_argument("--output", required=True)
+    gpu = commands.add_parser("gpu")
+    gpu_commands = gpu.add_subparsers(dest="gpu_command", required=True)
+    probe = gpu_commands.add_parser("probe")
+    probe.add_argument("--flash")
+    probe.add_argument("--fast")
     return root
 
 
@@ -89,6 +94,16 @@ def main(argv: list[str] | None = None) -> int:
         args = parser().parse_args(argv)
         if args.command == "model":
             return command_model(args, Paths.environment())
+        if args.command == "gpu":
+            gpus = discover_gpus()
+            for gpu in gpus:
+                print(f"{gpu.uuid}\tindex={gpu.index}\tpci={gpu.pci_bus}\tmemory_mib={gpu.memory_mib}\tcompute={gpu.compute}")
+            if bool(args.flash) != bool(args.fast):
+                raise PDS4Error("--flash and --fast must be supplied together")
+            if args.flash:
+                assign_gpus(args.flash, args.fast, Paths.environment(), gpus)
+                print("GPU assignment written; run systemctl daemon-reload before starting lanes")
+            return 0
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:
         print(f"pds4: {exc}", file=sys.stderr)
