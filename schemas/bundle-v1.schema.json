@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pds4.local/schemas/bundle-v1.schema.json",
+  "title": "PDS4 offline bundle v1",
+  "type": "object",
+  "required": ["schema", "id", "created_unix", "platform", "models", "personal_use", "files"],
+  "properties": {
+    "schema": {"const": 1},
+    "id": {"type": "string", "format": "uuid"},
+    "created_unix": {"type": "integer", "minimum": 0},
+    "platform": {"const": "ubuntu-24.04-x86_64-sm86"},
+    "models": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "personal_use": {"type": "boolean"},
+    "signer": {"type": ["string", "null"]},
+    "files": {"type": "object"}
+  },
+  "additionalProperties": false
+}

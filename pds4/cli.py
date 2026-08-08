@@ -11,6 +11,7 @@ from .common import Paths, PDS4Error, read_json, sha256_file
 from .gpu import assign as assign_gpus, discover as discover_gpus
 from .doctor import inspect as doctor_inspect
 from .lane import flash_action, read_lane_state, switch_fast
+from .bundle import create as bundle_create, import_bundle, recover as bundle_recover, verify as bundle_verify
 from .manifest import validate_manifest
 from .store import import_model, inspect_gguf, quarantine, verify_installed
 
@@ -99,6 +100,25 @@ def parser() -> argparse.ArgumentParser:
     use.add_argument("lane", choices=["fast"])
     use.add_argument("model_id")
     commands.add_parser("doctor")
+    bundle = commands.add_parser("bundle")
+    bundle_commands = bundle.add_subparsers(dest="bundle_command", required=True)
+    create = bundle_commands.add_parser("create")
+    create.add_argument("--model", action="append", default=[])
+    create.add_argument("--include-sources", action="store_true")
+    create.add_argument("--include-runtime", action="store_true")
+    create.add_argument("--personal-use", action="store_true")
+    create.add_argument("--signing-key", required=True)
+    create.add_argument("--signer", required=True)
+    create.add_argument("--output", required=True)
+    verify = bundle_commands.add_parser("verify")
+    verify.add_argument("path")
+    verify.add_argument("--allowed-signers", required=True)
+    importer = bundle_commands.add_parser("import")
+    importer.add_argument("path")
+    importer.add_argument("--allowed-signers", required=True)
+    recover = commands.add_parser("recover")
+    recover.add_argument("--bundle", required=True)
+    recover.add_argument("--allowed-signers", required=True)
     return root
 
 
@@ -131,6 +151,28 @@ def main(argv: list[str] | None = None) -> int:
             result = doctor_inspect(Paths.environment())
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0 if result["ok"] else 1
+        if args.command == "bundle":
+            if args.bundle_command == "create":
+                result = bundle_create(pathlib.Path(args.output), args.model, Paths.environment(),
+                                       include_sources=args.include_sources,
+                                       include_runtime=args.include_runtime,
+                                       personal_use=args.personal_use,
+                                       signing_key=pathlib.Path(args.signing_key) if args.signing_key else None,
+                                       signer=args.signer)
+                print(result["id"])
+                return 0
+            allowed = pathlib.Path(args.allowed_signers)
+            if args.bundle_command == "verify":
+                print(json.dumps(bundle_verify(pathlib.Path(args.path), allowed_signers=allowed),
+                                 indent=2, sort_keys=True))
+                return 0
+            imported = import_bundle(pathlib.Path(args.path), Paths.environment(), allowed_signers=allowed)
+            print("\n".join(imported))
+            return 0
+        if args.command == "recover":
+            print(bundle_recover(pathlib.Path(args.bundle), Paths.environment(),
+                                 allowed_signers=pathlib.Path(args.allowed_signers)))
+            return 0
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:
         print(f"pds4: {exc}", file=sys.stderr)

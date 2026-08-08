@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[ "$#" -eq 3 ] || { echo "usage: pds4-offline-build {ds4|llamacpp} SOURCE OUTPUT" >&2; exit 2; }
+case "$1" in
+  ds4) build=/opt/pds4/current/build/build-ds4.sh ;;
+  llamacpp) build=/opt/pds4/current/build/build-llamacpp.sh ;;
+  *) echo "unknown offline build target" >&2; exit 2 ;;
+esac
+[ -x "$build" ] || { echo "missing signed build script: $build" >&2; exit 1; }
+source_dir="$(readlink -f "$2")"
+output_dir="$(readlink -m "$3")"
+exec systemd-run --wait --pipe --collect \
+  --property=PrivateNetwork=yes \
+  --property=RestrictAddressFamilies=AF_UNIX \
+  --property=NoNewPrivileges=yes \
+  --setenv=PDS4_OFFLINE=1 \
+  "$build" "$source_dir" "$output_dir"
