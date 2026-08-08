@@ -9,6 +9,8 @@ import urllib.request
 
 from .common import Paths, PDS4Error, read_json, sha256_file
 from .gpu import assign as assign_gpus, discover as discover_gpus
+from .doctor import inspect as doctor_inspect
+from .lane import flash_action, read_lane_state, switch_fast
 from .manifest import validate_manifest
 from .store import import_model, inspect_gguf, quarantine, verify_installed
 
@@ -86,6 +88,17 @@ def parser() -> argparse.ArgumentParser:
     probe = gpu_commands.add_parser("probe")
     probe.add_argument("--flash")
     probe.add_argument("--fast")
+    lane = commands.add_parser("lane")
+    lane_commands = lane.add_subparsers(dest="lane_command", required=True)
+    lane_commands.add_parser("status")
+    start = lane_commands.add_parser("start")
+    start.add_argument("lane", choices=["flash"])
+    stop = lane_commands.add_parser("stop")
+    stop.add_argument("lane", choices=["flash"])
+    use = lane_commands.add_parser("use")
+    use.add_argument("lane", choices=["fast"])
+    use.add_argument("model_id")
+    commands.add_parser("doctor")
     return root
 
 
@@ -104,6 +117,20 @@ def main(argv: list[str] | None = None) -> int:
                 assign_gpus(args.flash, args.fast, Paths.environment(), gpus)
                 print("GPU assignment written; run systemctl daemon-reload before starting lanes")
             return 0
+        if args.command == "lane":
+            if args.lane_command == "status":
+                print(json.dumps({name: read_lane_state(Paths.environment(), name)
+                                  for name in ("flash", "fast")}, indent=2, sort_keys=True))
+                return 0
+            if args.lane_command in {"start", "stop"}:
+                print(json.dumps(flash_action(args.lane_command, Paths.environment()), sort_keys=True))
+                return 0
+            print(json.dumps(switch_fast(args.model_id, Paths.environment()), sort_keys=True))
+            return 0
+        if args.command == "doctor":
+            result = doctor_inspect(Paths.environment())
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0 if result["ok"] else 1
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:
         print(f"pds4: {exc}", file=sys.stderr)
