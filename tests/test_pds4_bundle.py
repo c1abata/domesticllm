@@ -41,6 +41,7 @@ class BundleTests(unittest.TestCase):
         create(output, ["tiny-model"], self.paths)
         verified = verify(output, require_signature=False)
         self.assertEqual(verified["platform"], PLATFORM)
+        self.assertTrue((output / "bootstrap/scripts/pds4-install").is_file())
         destination = Paths(self.root / "destination")
         self.assertEqual(import_bundle(output, destination, require_signature=False), ["tiny-model"])
 

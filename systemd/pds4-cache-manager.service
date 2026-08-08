@@ -4,7 +4,7 @@ After=local-fs.target
 
 [Service]
 Type=oneshot
-User=pds4-cache
+User=root
 Group=pds4-models
 ExecStart=/opt/pds4/current/bin/pds4 cache prune --max-size 64G
 NoNewPrivileges=yes

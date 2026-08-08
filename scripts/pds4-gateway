@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 from pds4.gateway import main
 
 raise SystemExit(main())

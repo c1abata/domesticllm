@@ -9,6 +9,7 @@ from .common import PDS4Error
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{1,126}[a-z0-9]$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 REVISION = re.compile(r"^[0-9a-f]{40,64}$")
+REPOSITORY = re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
 STATES = {"quarantine", "verified", "canary", "promoted"}
 LANES = {"flash", "fast"}
 ARTIFACT_ROLES = {"weights", "tokenizer", "template", "steering", "imatrix", "license"}
@@ -32,7 +33,8 @@ def validate_manifest(value: Any) -> dict[str, Any]:
     _required(value, "family", str)
     _required(value, "purpose", str)
     source = _required(value, "source", dict)
-    _required(source, "repository", str)
+    if not REPOSITORY.fullmatch(_required(source, "repository", str)):
+        raise PDS4Error("source repository must be an owner/name identifier")
     revision = _required(source, "revision", str)
     if not REVISION.fullmatch(revision):
         raise PDS4Error("source revision must be an immutable 40-64 digit hexadecimal revision")
@@ -45,7 +47,7 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         if not isinstance(artifact, dict):
             raise PDS4Error(f"artifact {index} is not an object")
         filename = _required(artifact, "file", str)
-        if filename != filename.rsplit("/", 1)[-1] or filename in {".", ".."}:
+        if filename != filename.rsplit("/", 1)[-1] or filename in {".", ".."} or filename.startswith("."):
             raise PDS4Error(f"artifact {index} has an unsafe filename")
         if filename in seen_files:
             raise PDS4Error(f"duplicate artifact filename: {filename}")

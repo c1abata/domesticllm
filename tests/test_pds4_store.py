@@ -4,6 +4,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from pds4.common import Paths, PDS4Error
 from pds4.manifest import validate_manifest
@@ -41,6 +42,7 @@ class PDS4StoreTests(unittest.TestCase):
         self.assertEqual(verified["id"], "tiny-model")
         digest = self.manifest["artifacts"][0]["sha256"]
         self.assertTrue((self.root / "srv/pds4/store/sha256" / digest[:2] / digest[2:]).is_file())
+        self.assertTrue((self.root / "srv/pds4/models/tiny-model/model.gguf").is_symlink())
 
     def test_rejects_checksum_mismatch(self):
         self.manifest["artifacts"][0]["sha256"] = "0" * 64
@@ -56,6 +58,21 @@ class PDS4StoreTests(unittest.TestCase):
         self.manifest_path.write_text(json.dumps(self.manifest), encoding="utf-8")
         with self.assertRaises(PDS4Error):
             import_model(self.manifest_path, self.artifacts, Paths(self.root))
+
+    def test_rejects_hardlinked_artifact(self):
+        linked = self.artifacts / "hardlink.gguf"
+        linked.hardlink_to(self.gguf)
+        self.manifest["artifacts"][0]["file"] = "hardlink.gguf"
+        self.manifest_path.write_text(json.dumps(self.manifest), encoding="utf-8")
+        with self.assertRaises(PDS4Error):
+            import_model(self.manifest_path, self.artifacts, Paths(self.root))
+
+    def test_detects_artifact_change_during_copy(self):
+        expected = self.manifest["artifacts"][0]
+        with mock.patch("pds4.store.sha256_file",
+                        side_effect=[(expected["sha256"], expected["size"]), ("0" * 64, expected["size"]) ]):
+            with self.assertRaises(PDS4Error):
+                import_model(self.manifest_path, self.artifacts, Paths(self.root))
 
     def test_manifest_rejects_floating_revision(self):
         self.manifest["source"]["revision"] = "main"

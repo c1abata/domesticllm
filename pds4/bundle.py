@@ -64,6 +64,26 @@ def create(output: pathlib.Path, model_ids: list[str], paths: Paths, *, include_
         _copy_file(repository / "LICENSE", output / "licenses" / "PDS4-LICENSE")
         _copy_file(repository / "vendor.lock.json", output / "sbom" / "vendor.lock.json")
         _copy_file(repository / "docs/PDS4_INVARIANTS.md", output / "docs/PDS4_INVARIANTS.md")
+        bootstrap = output / "bootstrap"
+        for source in sorted((repository / "pds4").glob("*.py")):
+            _copy_file(source, bootstrap / "pds4" / source.name)
+        for source in sorted((repository / "scripts").glob("pds4*")):
+            if source.is_file() and not source.is_symlink():
+                _copy_file(source, bootstrap / "scripts" / source.name, source.stat().st_mode & 0o555 or 0o440)
+        for pattern in ("pds4-*.service", "pds4-*.timer"):
+            for source in sorted((repository / "systemd").glob(pattern)):
+                _copy_file(source, bootstrap / "systemd" / source.name)
+        for source in sorted((repository / "systemd/user").glob("pds4-*.service")):
+            _copy_file(source, bootstrap / "systemd/user" / source.name)
+        for directory, pattern in (("conf", "pds4*"), ("models.d", "*.json"),
+                                   ("schemas", "*.json"), ("web", "*"),
+                                   ("docs", "PDS4_*.md"), ("build", "*")):
+            for source in sorted((repository / directory).glob(pattern)):
+                if source.is_file() and not source.is_symlink():
+                    _copy_file(source, bootstrap / directory / source.name,
+                               source.stat().st_mode & 0o555 or 0o440)
+        for name in ("LICENSE", "NOTICE.md", "vendor.lock.json"):
+            _copy_file(repository / name, bootstrap / name)
         included_models: list[str] = []
         for model_id in model_ids:
             manifest = verify_installed(model_id, paths)

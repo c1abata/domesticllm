@@ -18,7 +18,7 @@ from .cache import (checkpoint as cache_checkpoint, inspect as cache_inspect,
                     restore as cache_restore, verify_checkpoint)
 from .benchmark import hardware_snapshot, plan as benchmark_plan, record as benchmark_record, run_request
 from .manifest import validate_manifest
-from .store import import_model, inspect_gguf, quarantine, verify_installed
+from .store import import_model, inspect_gguf, verify_installed
 
 
 def command_model(args: argparse.Namespace, paths: Paths) -> int:
@@ -40,28 +40,42 @@ def command_model(args: argparse.Namespace, paths: Paths) -> int:
             print(f"{manifest['id']}\t{manifest['status']}\t{manifest['lane']}")
         return 0
     if args.model_command == "fetch":
-        if args.url is None:
-            raise PDS4Error("fetch requires an explicit immutable --url")
-        if "/resolve/main/" in args.url or "/latest/" in args.url:
-            raise PDS4Error("floating download URL refused")
-        manifest_path = pathlib.Path(args.manifest)
+        if os.geteuid() == 0:
+            raise PDS4Error("model fetch must run as an unprivileged user")
+        manifest_path = pathlib.Path(args.manifest_or_id)
+        if not manifest_path.is_file():
+            catalog = pathlib.Path(os.environ.get("PDS4_CATALOG", "/etc/pds4/models.d"))
+            candidate = catalog / f"{args.manifest_or_id}.json"
+            if not candidate.is_file():
+                candidate = pathlib.Path(__file__).resolve().parents[1] / "models.d" / f"{args.manifest_or_id}.json"
+            manifest_path = candidate
         manifest = validate_manifest(read_json(manifest_path))
         if len(manifest["artifacts"]) != 1:
             raise PDS4Error("fetch v1 accepts exactly one reviewed artifact")
-        destination = pathlib.Path(args.output).resolve()
-        destination.mkdir(parents=True, exist_ok=True)
         artifact = manifest["artifacts"][0]
-        parsed_path = urllib.parse.unquote(urllib.parse.urlsplit(args.url).path)
+        url = args.url or ("https://huggingface.co/" + manifest["source"]["repository"] + "/resolve/" +
+                           manifest["source"]["revision"] + "/" + urllib.parse.quote(artifact["file"]))
+        if urllib.parse.urlsplit(url).scheme != "https":
+            raise PDS4Error("model fetch requires HTTPS; use offline import for local media")
+        if "/resolve/main/" in url or "/latest/" in url:
+            raise PDS4Error("floating download URL refused")
+        default_output = pathlib.Path(os.environ.get("XDG_CACHE_HOME", pathlib.Path.home() / ".cache")) / "pds4/fetch" / manifest["id"]
+        destination = pathlib.Path(args.output).resolve() if args.output else default_output.resolve()
+        destination.mkdir(parents=True, exist_ok=True)
+        parsed_path = urllib.parse.unquote(urllib.parse.urlsplit(url).path)
         if manifest["source"]["revision"] not in parsed_path or not parsed_path.endswith("/" + artifact["file"]):
             raise PDS4Error("download URL does not match the reviewed revision and artifact")
-        request = urllib.request.Request(args.url, headers={"User-Agent": "pds4/0.1"})
+        request = urllib.request.Request(url, headers={"User-Agent": "pds4/0.1"})
         temporary = destination / (artifact["file"] + ".part")
         with urllib.request.urlopen(request, timeout=60) as response, temporary.open("xb") as output:
             while chunk := response.read(1024 * 1024):
                 output.write(chunk)
         digest, size = sha256_file(temporary)
         if digest != artifact["sha256"] or size != artifact["size"]:
-            rejected = quarantine(temporary, "downloaded artifact failed size or SHA-256 verification", Paths(destination))
+            rejected_dir = destination / "quarantine"
+            rejected_dir.mkdir(mode=0o700, exist_ok=True)
+            rejected = rejected_dir / (temporary.name + ".bad")
+            os.replace(temporary, rejected)
             raise PDS4Error(f"download verification failed; quarantined at {rejected}")
         if artifact["role"] == "weights" and temporary.suffixes[-2:] == [".gguf", ".part"]:
             inspect_gguf(temporary)
@@ -86,9 +100,9 @@ def parser() -> argparse.ArgumentParser:
     importer.add_argument("manifest")
     importer.add_argument("artifacts")
     fetch = model_commands.add_parser("fetch")
-    fetch.add_argument("manifest")
-    fetch.add_argument("--url", required=True)
-    fetch.add_argument("--output", required=True)
+    fetch.add_argument("manifest_or_id")
+    fetch.add_argument("--url")
+    fetch.add_argument("--output")
     gpu = commands.add_parser("gpu")
     gpu_commands = gpu.add_subparsers(dest="gpu_command", required=True)
     probe = gpu_commands.add_parser("probe")
@@ -222,7 +236,10 @@ def main(argv: list[str] | None = None) -> int:
                 print("\n".join(cache_prune(paths, parse_size(args.max_size))))
             return 0
         if args.command == "tui":
-            tui_path = pathlib.Path(__file__).resolve().parents[1] / "scripts/pds4-tui.py"
+            default_tui = pathlib.Path(sys.argv[0]).resolve().with_name("pds4-tui")
+            if not default_tui.is_file():
+                default_tui = pathlib.Path(__file__).resolve().parents[1] / "scripts/pds4-tui.py"
+            tui_path = pathlib.Path(os.environ.get("PDS4_TUI_PATH", default_tui))
             return subprocess.run([sys.executable, str(tui_path), *args.arguments], check=False).returncode
         if args.command == "serve":
             from .gateway import main as gateway_main

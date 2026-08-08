@@ -63,7 +63,7 @@ def write_lane_state(paths: Paths, name: str, status: str, model: str | None,
     runtime = paths.at("/run/pds4/routes.json")
     flash = read_lane_state(paths, "flash") if name != "flash" else value
     fast = read_lane_state(paths, "fast") if name != "fast" else value
-    atomic_write(runtime, canonical_json({"schema": 1, "flash": flash, "fast": fast}), 0o640)
+    atomic_write(runtime, canonical_json({"schema": 1, "flash": flash, "fast": fast}), 0o644)
     return value
 
 
@@ -133,11 +133,11 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
         try:
             if previous_model:
                 run("stop", f"pds4-fast@{previous_model}.service")
-            atomic_write(paths.at("/run/pds4/fast-canary.env"), _fast_environment(manifest, paths, 8086), 0o640)
+            atomic_write(paths.at("/run/pds4/fast-canary.env"), _fast_environment(manifest, paths, 8086), 0o644)
             run("start", candidate)
             check(8086, model_id, api_key)
             run("stop", candidate)
-            atomic_write(paths.at("/etc/pds4/lanes/fast.env"), _fast_environment(manifest, paths, 8085), 0o640)
+            atomic_write(paths.at("/etc/pds4/lanes/fast.env"), _fast_environment(manifest, paths, 8085), 0o644)
             run("start", primary)
             check(8085, model_id, api_key)
             _promote_manifest(model_id, paths)
@@ -153,7 +153,7 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
             if previous_model:
                 previous_manifest = verify_installed(previous_model, paths)
                 atomic_write(paths.at("/etc/pds4/lanes/fast.env"),
-                             _fast_environment(previous_manifest, paths, 8085), 0o640)
+                             _fast_environment(previous_manifest, paths, 8085), 0o644)
                 run("start", f"pds4-fast@{previous_model}.service")
                 check(8085, previous_model, api_key)
                 state = write_lane_state(paths, "fast", "ready", previous_model,
@@ -168,6 +168,19 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
 def flash_action(action: str, paths: Paths, runner: Callable[[str, str], None] | None = None) -> dict[str, Any]:
     if action not in {"start", "stop"}:
         raise PDS4Error("flash action must be start or stop")
+    if action == "start":
+        manifest = verify_installed("flash-q2", paths)
+        if manifest["lane"] != "flash":
+            raise PDS4Error("flash-q2 manifest is not assigned to the Flash lane")
+        weights = next(item for item in manifest["artifacts"] if item["role"] == "weights")
+        environment = (
+            f"PDS4_FLASH_MODEL={blob_path(paths, weights['sha256'])}\nPDS4_FLASH_HOST=127.0.0.1\n"
+            "PDS4_FLASH_PORT=8082\nPDS4_FLASH_CONTEXT=32768\nPDS4_FLASH_TOKENS=4096\n"
+            "PDS4_FLASH_THREADS=16\nPDS4_FLASH_POWER=100\nPDS4_FLASH_SESSIONS=1\n"
+            "PDS4_FLASH_EXPERT_CACHE=6GB\nPDS4_FLASH_KV_DIR=/var/cache/pds4/kv/flash\n"
+            "PDS4_FLASH_KV_MIB=8192\n"
+        ).encode()
+        atomic_write(paths.at("/etc/pds4/lanes/flash.env"), environment, 0o644)
     (runner or Systemctl())(action, "pds4-flash.service")
     return write_lane_state(paths, "flash", "ready" if action == "start" else "stopped",
                             "flash-q2" if action == "start" else None)

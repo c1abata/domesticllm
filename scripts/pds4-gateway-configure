@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import ipaddress
+import os
+import pathlib
+import tempfile
+
+
+def atomic(path: pathlib.Path, text: str, mode: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = pathlib.Path(name)
+    try:
+        os.fchmod(descriptor, mode)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            output.write(text)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--listen", required=True)
+    parser.add_argument("--allow-cidr", required=True)
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        parser.error("run as root")
+    address = ipaddress.ip_address(args.listen)
+    network = ipaddress.ip_network(args.allow_cidr, strict=False)
+    if address.is_unspecified or address.is_loopback or not (1 <= args.port <= 65535):
+        parser.error("LAN listen address and port are invalid")
+    if address.version != network.version:
+        parser.error("listen address and allowed CIDR use different families")
+    atomic(pathlib.Path("/etc/pds4/pds4.conf"),
+           f"PDS4_GATEWAY_LISTEN={address}\nPDS4_GATEWAY_PORT={args.port}\n", 0o644)
+    atomic(pathlib.Path("/etc/systemd/system/pds4-gateway.service.d/20-lan.conf"),
+           f"[Service]\nIPAddressAllow={network}\n", 0o644)
+    print("configured PDS4 LAN scope; run systemctl daemon-reload and restart after review")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

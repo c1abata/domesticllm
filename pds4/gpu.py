@@ -56,7 +56,7 @@ def assign(flash_uuid: str, fast_uuid: str, paths: Paths, gpus: list[GPU] | None
         f"PDS4_FLASH_PCI={inventory[flash_uuid].pci_bus}\n"
         f"PDS4_FAST_PCI={inventory[fast_uuid].pci_bus}\n"
     ).encode()
-    atomic_write(paths.at("/etc/pds4/gpus.conf"), config, 0o640)
+    atomic_write(paths.at("/etc/pds4/gpus.conf"), config, 0o644)
     units = (("pds4-flash.service", flash_uuid), ("pds4-fast@.service", fast_uuid),
              ("pds4-flash-canary.service", flash_uuid), ("pds4-fast-canary@.service", fast_uuid))
     for unit, uuid in units:

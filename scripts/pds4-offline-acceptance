@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bundle=""
+allowed_signers=""
+phase=pre-reboot
+fast_model=qwen3-coder-q4
+replacement=mistral-small-q4
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --bundle) bundle="${2:?missing bundle}"; shift 2 ;;
+    --allowed-signers) allowed_signers="${2:?missing allowed signers}"; shift 2 ;;
+    --phase) phase="${2:?missing phase}"; shift 2 ;;
+    --fast-model) fast_model="${2:?missing model}"; shift 2 ;;
+    --replacement) replacement="${2:?missing model}"; shift 2 ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+[ -d "$bundle" ] && [ -f "$allowed_signers" ] || { echo "bundle and allowed signers are required" >&2; exit 2; }
+[ "${PDS4_WAN_DISABLED:-0}" = 1 ] || { echo "set PDS4_WAN_DISABLED=1 only after disabling WAN and DNS" >&2; exit 1; }
+if ip route get 1.1.1.1 >/dev/null 2>&1 || getent ahosts example.com >/dev/null 2>&1; then
+  echo "WAN or DNS is still reachable" >&2
+  exit 1
+fi
+
+report=/var/lib/pds4/offline-acceptance.env
+pass() { printf '%s=pass\n' "$1" | tee -a "$report"; }
+case "$phase" in
+  pre-reboot)
+    : >"$report"
+    pds4 bundle verify "$bundle" --allowed-signers "$allowed_signers" >/dev/null
+    pass OFFLINE_INSTALL
+    pds4 doctor >/dev/null
+    pds4 lane start flash
+    pass FLASH_LANE
+    pds4 lane use fast "$fast_model"
+    pass FAST_LANE
+    pds4 lane use fast "$replacement"
+    pass MODEL_SWITCH
+    pds4 lane use fast "$fast_model"
+    pass ROLLBACK
+    echo "[gate] perform CLI/TUI/API chats and KV checkpoint/restore, then reboot"
+    ;;
+  post-reboot)
+    pds4 doctor >/dev/null
+    systemctl is-active --quiet pds4-flash.service
+    systemctl is-active --quiet "pds4-fast@${fast_model}.service"
+    pass REBOOT_RECOVERY
+    echo "[gate] append remaining measured gates only after their commands pass"
+    ;;
+  *) echo "phase must be pre-reboot or post-reboot" >&2; exit 2 ;;
+esac

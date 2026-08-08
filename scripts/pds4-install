@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 022
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+prefix="${PDS4_DESTDIR:-}"
+version="${PDS4_VERSION:-0.1.0}"
+case "$version" in *[!A-Za-z0-9._-]*|"") echo "invalid PDS4 version" >&2; exit 2 ;; esac
+if [ -z "$prefix" ]; then
+  [ "$(id -u)" -eq 0 ] || { echo "run as root or set PDS4_DESTDIR for an image build" >&2; exit 1; }
+  prefix=/
+else
+  prefix="$(readlink -m "$prefix")"
+fi
+
+at() { printf '%s/%s' "${prefix%/}" "${1#/}"; }
+release_root="$(at /opt/pds4/releases)"
+release="$release_root/$version"
+temporary="$release_root/.${version}.install.$$"
+[ ! -e "$release" ] || { echo "release already installed: $release" >&2; exit 1; }
+install -d -m 0755 "$release_root" "$(at /srv/pds4/store/sha256)" "$(at /srv/pds4/models)" \
+  "$(at /srv/pds4/sources)" "$(at /srv/pds4/toolchains)" "$(at /srv/pds4/licenses)" \
+  "$(at /srv/pds4/quarantine)" "$(at /var/lib/pds4/lanes)" "$(at /var/lib/pds4/sessions)" \
+  "$(at /var/cache/pds4/kv/flash)" "$(at /var/cache/pds4/kv/fast)" "$(at /var/cache/pds4/experts/flash)" \
+  "$(at /etc/pds4/lanes)" "$(at /etc/pds4/models.d)" "$(at /usr/share/pds4/web)" \
+  "$(at /etc/systemd/system)"
+trap 'rm -rf -- "$temporary"' EXIT
+install -d -m 0755 "$temporary/bin" "$temporary/lib/pds4" "$temporary/build" "$temporary/schemas" "$temporary/docs"
+for file in "$root"/pds4/*.py; do install -m 0444 "$file" "$temporary/lib/pds4/"; done
+for file in pds4 pds4-gateway pds4-tui.py pds4-offline-build pds4-soak.py pds4-hermes-configure pds4-gateway-configure; do
+  install -m 0555 "$root/scripts/$file" "$temporary/bin/${file%.py}"
+done
+for file in "$root"/build/*; do install -m 0444 "$file" "$temporary/build/"; done
+chmod 0555 "$temporary/build"/*.sh
+install -m 0444 "$root"/schemas/*.json "$temporary/schemas/"
+install -m 0444 "$root/docs/PDS4_"*.md "$temporary/docs/"
+install -m 0444 "$root/LICENSE" "$root/NOTICE.md" "$root/vendor.lock.json" "$temporary/"
+chmod -R a-w "$temporary"
+mv "$temporary" "$release"
+trap - EXIT
+
+for unit in "$root"/systemd/pds4-*.service "$root"/systemd/pds4-*.timer; do
+  install -m 0444 "$unit" "$(at /etc/systemd/system)/$(basename "$unit")"
+done
+install -m 0644 "$root/conf/pds4-flash.env" "$(at /etc/pds4/lanes/flash.env)"
+install -m 0644 "$root/conf/pds4-fast.env" "$(at /etc/pds4/lanes/fast.env)"
+install -m 0644 "$root/conf/pds4-gateway.env" "$(at /etc/pds4/pds4.conf)"
+install -m 0444 "$root"/models.d/*.json "$(at /etc/pds4/models.d)/"
+install -m 0444 "$root"/web/* "$(at /usr/share/pds4/web)/"
+key="$(at /etc/pds4/gateway.key)"
+if [ ! -e "$key" ]; then
+  python3 -c 'import secrets; print(secrets.token_urlsafe(48))' >"$key"
+  chmod 0640 "$key"
+fi
+
+current="$(at /opt/pds4/current)"
+previous="$(at /opt/pds4/previous)"
+if [ -L "$current" ]; then
+  old="$(readlink "$current")"
+  ln -sfn "$old" "$previous"
+fi
+ln -sfn "/opt/pds4/releases/$version" "$current"
+
+if [ "$prefix" = / ]; then
+  getent group pds4-models >/dev/null || groupadd --system pds4-models
+  for account in pds4-flash pds4-fast pds4-gateway pds4-cache; do
+    id "$account" >/dev/null 2>&1 || useradd --system --gid pds4-models --home-dir /nonexistent \
+      --shell /usr/sbin/nologin "$account"
+  done
+  chown -R root:pds4-models /srv/pds4 /var/lib/pds4 /etc/pds4
+  chown -R pds4-flash:pds4-models /var/cache/pds4/kv/flash /var/cache/pds4/experts/flash
+  chown -R pds4-fast:pds4-models /var/cache/pds4/kv/fast
+  chown root:pds4-models /etc/pds4/gateway.key
+fi
+
+echo "[ok] installed immutable PDS4 release $version"
+echo "[next] provision pds4 service users, assign GPU UUIDs, then run systemctl daemon-reload"
+echo "[note] no service was enabled or started"
