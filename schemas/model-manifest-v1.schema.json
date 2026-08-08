@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pds4.local/schemas/model-manifest-v1.schema.json",
+  "title": "PDS4 model manifest v1",
+  "type": "object",
+  "required": ["schema", "id", "family", "purpose", "source", "artifacts", "runtime", "lane", "context_tested", "tools_allowed", "license", "offline_ready", "status"],
+  "properties": {
+    "schema": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,126}[a-z0-9]$"},
+    "family": {"type": "string", "minLength": 1},
+    "purpose": {"type": "string", "minLength": 1},
+    "source": {"type": "object", "required": ["repository", "revision"], "properties": {"repository": {"type": "string"}, "revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}}, "additionalProperties": true},
+    "artifacts": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["file", "role", "sha256", "size"], "properties": {"file": {"type": "string"}, "role": {"enum": ["weights", "tokenizer", "template", "steering", "imatrix", "license"]}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "size": {"type": "integer", "minimum": 1}}, "additionalProperties": true}},
+    "runtime": {"type": "object", "required": ["engine", "commit"], "properties": {"engine": {"enum": ["ds4", "llama.cpp"]}, "commit": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}}},
+    "lane": {"enum": ["flash", "fast"]},
+    "context_tested": {"type": "integer", "minimum": 1},
+    "tools_allowed": {"type": "boolean"},
+    "license": {"type": "object", "required": ["spdx", "redistribution"], "properties": {"spdx": {"type": "string"}, "redistribution": {"enum": ["allowed", "personal-only", "metadata-only", "unknown"]}},
+    "offline_ready": {"const": true},
+    "status": {"enum": ["quarantine", "verified", "canary", "promoted"]}
+  },
+  "additionalProperties": true
+}

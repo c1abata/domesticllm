@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "dolphin-cyber-8b-q4",
+  "family": "llama-3.1",
+  "purpose": "restricted-cybersecurity",
+  "source": {"repository": "RavichandranJ/Dolphin3-Cyber-8B-GGUF", "revision": "145d66f096c8a99aad63be19ada1fbc46d3230bd"},
+  "artifacts": [{"file": "Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf", "role": "weights", "sha256": "73da18db1557e19e8ec2d6c1e8ef08e182c735d72f3bd526f6940f4fec96c1cb", "size": 4920745984}],
+  "quantization": "Q4_K_M",
+  "runtime": {"engine": "llama.cpp", "commit": "876a4321163249c43ca4e986818fab5ab081f282"},
+  "lane": "fast",
+  "context_tested": 8192,
+  "tools_allowed": false,
+  "license": {"spdx": "Llama-3.1-Community", "redistribution": "personal-only"},
+  "offline_ready": true,
+  "status": "quarantine"
+}

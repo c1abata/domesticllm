@@ -2,6 +2,7 @@
 models/quarantine/
 models/**/*.gguf
 models/**/*.gguf.*
+pds4-bundles/
 
 # Local secrets and generated runtime state.
 *.env.local

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "flash-q2",
+  "family": "deepseek-v4",
+  "purpose": "capacity",
+  "source": {"repository": "antirez/deepseek-v4-gguf", "revision": "c198a70525f1856f1bf50448f163471692c881f8"},
+  "artifacts": [{"file": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf", "role": "weights", "sha256": "a02f4e9ed0f7cd4d51b79ccb21e72a9fd17b5104a14361c9a333798d4e6ea5c8", "size": 86720111488}],
+  "quantization": "IQ2XXS-imatrix",
+  "runtime": {"engine": "ds4", "commit": "80df56af4070d0fc62f6f9682b1854f8e5be8b00"},
+  "lane": "flash",
+  "context_tested": 32768,
+  "tools_allowed": true,
+  "license": {"spdx": "MIT", "redistribution": "allowed"},
+  "hardware": {"minimum_ram_gib": 112, "recommended_ram_gib": 128, "compute_capability": "8.6"},
+  "offline_ready": true,
+  "status": "quarantine"
+}

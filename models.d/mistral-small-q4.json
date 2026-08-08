@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "mistral-small-q4",
+  "family": "mistral-small-3.1",
+  "purpose": "general",
+  "source": {"repository": "bartowski/mistralai_Mistral-Small-3.1-24B-Instruct-2503-GGUF", "revision": "f73dfd9e812922fb503a993e3fa5671424f486d3"},
+  "artifacts": [{"file": "mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf", "role": "weights", "sha256": "c5743c1bf39db0ae8a5ade5df0374b8e9e492754a199cfdad7ef393c1590f7c0", "size": 14333910496}],
+  "quantization": "Q4_K_M",
+  "runtime": {"engine": "llama.cpp", "commit": "876a4321163249c43ca4e986818fab5ab081f282"},
+  "lane": "fast",
+  "context_tested": 16384,
+  "tools_allowed": true,
+  "license": {"spdx": "Apache-2.0", "redistribution": "allowed"},
+  "offline_ready": true,
+  "status": "quarantine"
+}

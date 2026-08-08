@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "qwen3-coder-q4",
+  "family": "qwen3",
+  "purpose": "coding",
+  "source": {"repository": "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF", "revision": "b17cb02dd882d5b6ab62fc777ad2995f19668350"},
+  "artifacts": [{"file": "Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf", "role": "weights", "sha256": "2841aa314d916434860cfb8990347528dcdfe5c350dbcb9d1461dbee88ff2533", "size": 17665334432}],
+  "quantization": "UD-Q4_K_XL",
+  "runtime": {"engine": "llama.cpp", "commit": "876a4321163249c43ca4e986818fab5ab081f282"},
+  "lane": "fast",
+  "context_tested": 16384,
+  "tools_allowed": true,
+  "license": {"spdx": "Apache-2.0", "redistribution": "allowed"},
+  "offline_ready": true,
+  "status": "quarantine"
+}
