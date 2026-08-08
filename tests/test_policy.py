@@ -174,7 +174,7 @@ class RepositoryPolicyTests(unittest.TestCase):
         self.assertNotIn("innerHTML", web)
         self.assertNotIn("localStorage", web)
         self.assertNotIn("location.search", web)
-        self.assertIn("sessionStorage", web)
+        self.assertNotIn("sessionStorage", web)
         self.assertIn('"Authorization"', web)
 
         hermes = (ROOT / "examples" / "hermes" / "config.yaml").read_text(encoding="utf-8")

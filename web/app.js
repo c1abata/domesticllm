@@ -58,13 +58,12 @@ async function connect() {
     const models = Array.isArray(catalog.data) ? catalog.data : [];
     if (!models.length) throw new Error("Nessun modello attivo");
     state.key = key;
-    sessionStorage.setItem("domesticllm.gatewayKey", key);
     elements.model.replaceChildren();
     for (const model of models) {
       if (!model || typeof model.id !== "string") continue;
       const option = document.createElement("option");
       option.value = model.id;
-      option.textContent = `${model.id} · ${model.domesticllm_lane || "local"}`;
+      option.textContent = `${model.id} · ${model.pds4_lane || "local"}`;
       elements.model.append(option);
     }
     setConnected(true, `${models.length} modelli online`);
@@ -72,7 +71,6 @@ async function connect() {
     elements["request-state"].textContent = "pronto";
   } catch (error) {
     state.key = "";
-    sessionStorage.removeItem("domesticllm.gatewayKey");
     setConnected(false, "accesso negato");
     showError(error.message);
     elements["request-state"].textContent = "connessione fallita";
@@ -201,9 +199,3 @@ elements.clear.addEventListener("click", clearSession);
 elements.prompt.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.ctrlKey) elements.composer.requestSubmit();
 });
-
-const savedKey = sessionStorage.getItem("domesticllm.gatewayKey");
-if (savedKey) {
-  elements["api-key"].value = savedKey;
-  connect();
-}

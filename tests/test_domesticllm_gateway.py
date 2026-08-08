@@ -94,7 +94,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn("frame-ancestors 'none'", response.getheader("Content-Security-Policy"))
         self.assertEqual(response.getheader("Cross-Origin-Resource-Policy"), "same-origin")
-        self.assertIn(b"DomesticLLM", body)
+        self.assertIn(b"PDS4", body)
         self.assertNotIn(("x" * 48).encode(), body)
         connection.close()
 

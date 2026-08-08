@@ -1,0 +1,26 @@
+[Unit]
+Description=PDS4 authenticated LAN gateway
+After=pds4-flash.service
+Wants=pds4-flash.service
+
+[Service]
+Type=simple
+User=pds4-gateway
+Group=pds4-models
+EnvironmentFile=/etc/pds4/pds4.conf
+ExecStart=/opt/pds4/current/bin/pds4-gateway --listen ${PDS4_GATEWAY_LISTEN} --port ${PDS4_GATEWAY_PORT} --routes /run/pds4/routes.json --catalog /etc/pds4/models.d --web-root /usr/share/pds4/web --api-key-file /etc/pds4/gateway.key
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+DevicePolicy=closed
+ReadOnlyPaths=/opt/pds4 /srv/pds4 /etc/pds4 /run/pds4 /usr/share/pds4/web
+
+[Install]
+WantedBy=multi-user.target

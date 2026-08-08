@@ -4,6 +4,7 @@ import argparse
 import json
 import pathlib
 import sys
+import subprocess
 import urllib.parse
 import urllib.request
 
@@ -132,6 +133,9 @@ def parser() -> argparse.ArgumentParser:
     verify_cache.add_argument("session", nargs="?")
     prune_cache = cache_commands.add_parser("prune")
     prune_cache.add_argument("--max-size", required=True)
+    tui = commands.add_parser("tui")
+    tui.add_argument("arguments", nargs=argparse.REMAINDER)
+    commands.add_parser("serve")
     return root
 
 
@@ -204,6 +208,12 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("\n".join(cache_prune(paths, parse_size(args.max_size))))
             return 0
+        if args.command == "tui":
+            tui_path = pathlib.Path(__file__).resolve().parents[1] / "scripts/pds4-tui.py"
+            return subprocess.run([sys.executable, str(tui_path), *args.arguments], check=False).returncode
+        if args.command == "serve":
+            from .gateway import main as gateway_main
+            return gateway_main([])
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:
         print(f"pds4: {exc}", file=sys.stderr)
