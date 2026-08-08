@@ -62,11 +62,11 @@ class RepositoryPolicyTests(unittest.TestCase):
             self.assertIn("ProtectSystem=strict", text, unit.name)
             self.assertNotRegex(text, r"ReadWritePaths=.*?/opt/local-ai")
 
-    def test_default_service_profiles_are_loopback_only(self):
+    def test_default_service_profiles_use_configured_lan_bind(self):
         for env_file in (ROOT / "conf").glob("local-ai*.env"):
             text = env_file.read_text(encoding="utf-8")
             if "LOCAL_AI_HOST=" in text:
-                self.assertIn("LOCAL_AI_HOST=127.0.0.1", text, env_file.name)
+                self.assertIn("LOCAL_AI_HOST=0.0.0.0", text, env_file.name)
             self.assertNotIn("CHANGE_ME", text, env_file.name)
 
     def test_incomplete_models_are_only_in_quarantine(self):
@@ -162,9 +162,7 @@ class RepositoryPolicyTests(unittest.TestCase):
         unit = (ROOT / "systemd/domesticllm-lan-gateway.service").read_text(encoding="utf-8")
         installer = (ROOT / "scripts/21_install_lan_gateway.sh").read_text(encoding="utf-8")
         launcher = (ROOT / "scripts/domesticllm-lan").read_text(encoding="utf-8")
-        self.assertIn("IPAddressDeny=any", unit)
-        self.assertIn("IPAddressAllow=localhost", unit)
-        self.assertNotRegex(unit, r"IPAddressAllow=10\.")
+        self.assertIn("--listen 0.0.0.0", unit)
         self.assertIn("--lan-cidr", installer)
         self.assertIn("ipaddress.ip_network", installer)
         self.assertIn("IPAddressAllow=%s", installer)

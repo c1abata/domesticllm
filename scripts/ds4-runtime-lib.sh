@@ -63,8 +63,8 @@ ds4_reject_partial_model() {
 
 ds4_require_loopback() {
   case "$1" in
-    127.0.0.1|::1) ;;
-    *) ds4_die "native DS4 must bind to loopback, got: $1" ;;
+    127.0.0.1|::1|0.0.0.0) ;;
+    *) ds4_die "native DS4 bind must be 127.0.0.1, ::1 or 0.0.0.0, got: $1" ;;
   esac
 }
 
@@ -97,10 +97,12 @@ ds4_set_env_key() {
 }
 
 ds4_http_ready() {
-  local host="$1" port="$2" output
+  local host="$1" port="$2" output probe_host
   ds4_require_loopback "$host"
+  probe_host="$host"
+  [ "$probe_host" = 0.0.0.0 ] && probe_host=127.0.0.1
   output="$(curl --fail --silent --show-error --max-time 10 \
-    "http://${host}:${port}/v1/models" 2>/dev/null)" || return 1
+    "http://${probe_host}:${port}/v1/models" 2>/dev/null)" || return 1
   printf '%s' "$output" | grep -Eq '"(data|id|object)"'
 }
 

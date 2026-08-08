@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small authenticated reverse proxy for a loopback-only OpenAI API."""
+"""Small authenticated reverse proxy for the controlled local OpenAI API."""
 
 from __future__ import annotations
 
@@ -287,7 +287,7 @@ def main() -> int:
     parser.add_argument("--backend-host", default="127.0.0.1")
     parser.add_argument("--backend-port", type=int, default=8083)
     parser.add_argument("--fast-backend-port", type=int)
-    parser.add_argument("--fast-models", default="mistral-small,dolphin,qwen3-coder,cyber-uncensored")
+    parser.add_argument("--fast-models", default="dolphin,qwen,cyber-uncensored")
     parser.add_argument("--web-root")
     parser.add_argument("--default-concurrency", type=int, default=1)
     parser.add_argument("--fast-concurrency", type=int, default=1)

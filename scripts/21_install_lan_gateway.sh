@@ -56,5 +56,5 @@ systemctl daemon-reload
 systemctl enable --now "$UNIT"
 systemctl is-active --quiet "$UNIT" || { systemctl status --no-pager "$UNIT"; exit 1; }
 echo "[ok] authenticated gateway listening on 0.0.0.0:8080 for $LAN_CIDR"
-echo "[info] DS4 remains isolated on 127.0.0.1:8083"
+echo "[info] DS4 and fast backend are reachable on 0.0.0.0; use the controlled LAN/Tailscale network"
 echo "[info] Web UI: http://SERVER_IP:8080/ (gateway key required for API access)"

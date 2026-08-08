@@ -69,17 +69,18 @@ Modelli disponibili attraverso lo stesso gateway:
 # DeepSeek V4, reasoning e tool calling
 domesticllm-lan --model deepseek-v4-flash "Analizza il problema"
 
-# Mistral 24B sulla fast lane GPU1
-domesticllm-lan --model mistral-small "Risposta interattiva rapida"
-
-# Dolphin 24B: disponibile solo quando selezionato esplicitamente
+# Dolphin 24B sulla fast lane GPU1
 domesticllm-lan --model dolphin "Richiesta nel profilo locale controllato"
+
+# Qwen Coder e Cyber uncensored sono gli altri profili della fast lane
+domesticllm-lan --model qwen "Scrivi una patch"
+domesticllm-lan --model cyber-uncensored "Analizza questo campione"
 ```
 
-Mistral e Dolphin condividono la GPU1 e non vengono eseguiti insieme. Il
-profilo attivo si seleziona con `sudo domesticllm-model mistral` oppure
-`sudo domesticllm-model dolphin`. `sudo domesticllm-model stop` libera GPU1.
-DS4 continua a usare GPU0. Il tool calling rimane sul profilo DS4: il GGUF
+I quattro nomi pubblici sono `deepseek-v4-flash`, `dolphin`, `qwen` e
+`cyber-uncensored`. DeepSeek usa la capacità DS4; gli altri tre condividono la
+GPU1 e vengono attivati uno alla volta con `sudo domesticllm-model NOME`.
+`sudo domesticllm-model stop` libera GPU1. Il tool calling rimane sul profilo DS4: il GGUF
 Mistral e il parser llama.cpp verificati in questo kit sono accettati per chat
 e RAG, non ancora per la conversione affidabile in `tool_calls` OpenAI.
 
@@ -98,9 +99,8 @@ configurabili con `DOMESTICLLM_SLOW_SECONDS` (45 secondi) e
 di DS4 con uno stallo). In pipe o senza terminale interattivo
 il comando emette heartbeat testuali su stderr e la risposta pulita su stdout.
 
-Nel profilo LAN autorizzato, il gateway autenticato ascolta su `0.0.0.0:8080`
-ma accetta traffico solamente dal CIDR fornito all'installer; DS4 resta su
-loopback. Configurare il client senza inserire la chiave negli argomenti:
+Nel profilo LAN/Tailscale, il gateway e i backend ascoltano su `0.0.0.0`.
+Configurare il client senza inserire la chiave negli argomenti:
 
 ```bash
 export DOMESTICLLM_URL=http://SERVER_LAN_IP:8080/v1/chat/completions

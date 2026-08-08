@@ -18,7 +18,7 @@ import urllib.parse
 
 DEFAULT_URL = "http://127.0.0.1:8083/v1/chat/completions"
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-CHAT_MODELS = {"deepseek-v4-flash", "mistral-small", "dolphin", "qwen3-coder", "cyber-uncensored"}
+CHAT_MODELS = {"deepseek-v4-flash", "dolphin", "qwen", "cyber-uncensored"}
 
 
 def positive_int(value: str) -> int:
@@ -302,7 +302,7 @@ def chat_command(line: str, args: argparse.Namespace, messages: list[dict]) -> t
         messages.clear()
         print(f"Modello impostato a {value}; contesto azzerato.")
     elif command == "/model":
-        print("Modello non valido: deepseek-v4-flash, mistral-small, dolphin, qwen3-coder oppure cyber-uncensored.")
+        print("Modello non valido: deepseek-v4-flash, dolphin, qwen oppure cyber-uncensored.")
     elif command == "/reasoning" and value in {"direct", "high", "max"}:
         args.reasoning = value
         print(f"Reasoning impostato a {value}.")

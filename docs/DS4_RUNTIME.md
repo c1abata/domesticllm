@@ -11,18 +11,19 @@ senza rimuovere il backend `llama.cpp`. Il target è Ubuntu 24.04, Ryzen 9
 - Driver NVIDIA e CUDA Toolkit sono prerequisiti: nessuno script li installa.
 - Nessuno script scarica modelli. Il GGUF `q2-imatrix` deve essere fornito
   dall'operatore e deve superare SHA-256 prima di ogni avvio.
-- DS4 ascolta solo su `127.0.0.1`. L'accesso remoto passa da tunnel SSH o
-  tailnet approvato; non esiste autenticazione nativa da usare come barriera LAN.
+- DS4 ascolta su `0.0.0.0` per il profilo LAN/Tailscale controllato; il gateway
+  resta il percorso consigliato per Web UI, CLI e selezione dei quattro modelli.
 - Modelli e release sono root-owned e non scrivibili da `localai`.
 - I dati scrivibili del servizio sono limitati alla KV cache da 8 GiB e ai log.
 
-Dal laptop, il bind resta loopback anche usando Tailscale:
+Dal laptop, il tunnel SSH opzionale resta loopback sul client:
 
 ```bash
 ssh -N -L 8083:127.0.0.1:8083 operatore@server-tailnet
 ```
 
-Il client usa quindi `http://127.0.0.1:8083`; non si apre la porta DS4 in LAN.
+Per accesso diretto usare l'indirizzo LAN/Tailscale del server e la porta del
+servizio; per uso normale usare `http://SERVER:8080/v1` attraverso il gateway.
 
 ## Build e installazione
 

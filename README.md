@@ -18,15 +18,15 @@ Model weights are never stored in this repository.
 ```text
 ds4 (persistent tmux console)
   ├── DeepSeek V4 Flash → native DwarfStar4, SSD expert streaming, persistent KV
-  └── Qwen / Mistral / Dolphin / Cyber → pinned llama.cpp fallback
+  └── Dolphin / Qwen / Cyber → pinned llama.cpp fast lane
 
 Hermes on WSL / Web UI / CLI-TUI
   └── authenticated gateway → DS4 capacity lane or active llama.cpp fast lane
 ```
 
 The console remains the direct operator path. An optional dependency-free Web
-UI and the Hermes client use the authenticated gateway; DS4 itself remains on
-loopback. The stack never exposes an unauthenticated model listener. Model
+UI and the Hermes client use the gateway; all server listeners bind on
+`0.0.0.0` for the controlled LAN/Tailscale environment. Model
 selection routes requests only to already-active allowlisted profiles and does
 not grant a browser or agent permission to control systemd.
 
@@ -58,7 +58,7 @@ Hardware results are evidence for this profile, not a guarantee for other hosts.
 | Component | Implementation | Role |
 | --- | --- | --- |
 | Capacity runtime | pinned native DwarfStar4 CUDA | DeepSeek V4 Flash, tool calls, KV persistence |
-| Fast lane | pinned `llama.cpp` CUDA | one active Qwen/Mistral/Dolphin/Cyber profile on GPU1 |
+| Fast lane | pinned `llama.cpp` CUDA | one active Qwen/Dolphin/Cyber profile on GPU1 |
 | Operator console | Bash + tmux | one persistent `ds4` control path |
 | CLI/TUI | Python standard library | streaming chat, TTFT/token/status telemetry |
 | Web UI | static HTML/CSS/JS + Python standard-library gateway | authenticated chat and live model selection |

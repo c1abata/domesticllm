@@ -8,6 +8,12 @@ providers:
     models:
       deepseek-v4-flash:
         context_length: 100000
+      dolphin:
+        context_length: 16384
+      qwen:
+        context_length: 16384
+      cyber-uncensored:
+        context_length: 16384
 
 model:
   provider: custom:domestic

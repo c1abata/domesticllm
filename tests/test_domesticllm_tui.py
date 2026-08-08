@@ -46,11 +46,11 @@ class DomesticLlmTuiTests(unittest.TestCase):
         messages = [{"role": "user", "content": "uno"},
                     {"role": "assistant", "content": "due"},
                     {"role": "user", "content": "tre"}]
-        payload = TUI.build_payload("mistral-small", "tre", 128, 0, "direct", messages)
+        payload = TUI.build_payload("dolphin", "tre", 128, 0, "direct", messages)
         self.assertEqual(payload["messages"], messages)
 
     def test_clear_command_removes_history(self):
-        args = argparse.Namespace(session="test", model="mistral-small", max_tokens=128,
+        args = argparse.Namespace(session="test", model="dolphin", max_tokens=128,
                                   reasoning="direct")
         messages = [{"role": "user", "content": "secret"}]
         handled, keep_going = TUI.chat_command("/clear", args, messages)

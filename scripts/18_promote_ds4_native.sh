@@ -44,5 +44,5 @@ fi
 systemctl enable local-ai-ds4-native.service
 systemctl disable "$llama_unit"
 
-ds4_info "DS4 promoted to loopback port $primary_port"
+ds4_info "DS4 promoted to LAN bind 0.0.0.0 port $primary_port"
 ds4_info "llama.cpp remains installed; use scripts/19_rollback_llama.sh if needed"

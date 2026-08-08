@@ -13,7 +13,7 @@ EnvironmentFile=/etc/domesticllm-llama-fast.env
 Environment=LD_LIBRARY_PATH=/opt/local-ai/llama-current/lib
 WorkingDirectory=/opt/local-ai
 ExecStart=/opt/local-ai/llama-current/bin/llama-server \
-  --host 127.0.0.1 \
+  --host 0.0.0.0 \
   --port 8085 \
   --api-key-file /etc/local-ai-gateway.key \
   --model ${LOCAL_AI_MODEL} \
@@ -59,8 +59,6 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 SystemCallArchitectures=native
-IPAddressDeny=any
-IPAddressAllow=localhost
 DevicePolicy=closed
 DeviceAllow=/dev/nvidiactl rw
 DeviceAllow=/dev/nvidia-uvm rw

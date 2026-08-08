@@ -41,7 +41,7 @@ class GatewayTests(unittest.TestCase):
         self.backend_thread = threading.Thread(target=self.backend.serve_forever, daemon=True)
         self.backend_thread.start()
         self.fast_backend = http.server.HTTPServer(("127.0.0.1", 0), Backend)
-        self.fast_backend.model_id = "qwen3-coder"
+        self.fast_backend.model_id = "qwen"
         self.fast_backend_thread = threading.Thread(target=self.fast_backend.serve_forever, daemon=True)
         self.fast_backend_thread.start()
         self.gateway = GATEWAY.Server(("127.0.0.1", 0), GATEWAY.Gateway)
@@ -49,7 +49,7 @@ class GatewayTests(unittest.TestCase):
         self.gateway.backend_host = "127.0.0.1"
         self.gateway.backend_port = self.backend.server_port
         self.gateway.fast_backend_port = self.fast_backend.server_port
-        self.gateway.fast_models = {"qwen3-coder"}
+        self.gateway.fast_models = {"dolphin", "qwen", "cyber-uncensored"}
         self.gateway.max_body = 1024
         self.gateway.timeout = 5
         self.gateway.web_root = SCRIPT.parents[1] / "web"
@@ -103,7 +103,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         payload = json.loads(body)
         models = {item["id"]: item["domesticllm_lane"] for item in payload["data"]}
-        self.assertEqual(models, {"deepseek-v4-flash": "capacity", "qwen3-coder": "fast"})
+        self.assertEqual(models, {"deepseek-v4-flash": "capacity", "qwen": "fast"})
 
     def test_routes_are_allowlisted(self):
         status, _ = self.request(path="/admin", key="x" * 48)
@@ -123,13 +123,13 @@ class GatewayTests(unittest.TestCase):
             os.unlink(path)
 
     def test_explicit_fast_model_is_routed(self):
-        body = b'{"model":"mistral-small","messages":[]}'
-        selected = GATEWAY.backend_port_for_request(8083, 8085, {"mistral-small", "dolphin", "qwen3-coder"}, body)
+        body = b'{"model":"dolphin","messages":[]}'
+        selected = GATEWAY.backend_port_for_request(8083, 8085, {"dolphin", "qwen", "cyber-uncensored"}, body)
         self.assertEqual(selected, 8085)
 
     def test_qwen_coder_is_routed_to_fast_lane(self):
-        body = b'{"model":"qwen3-coder","messages":[]}'
-        selected = GATEWAY.backend_port_for_request(8083, 8085, {"qwen3-coder"}, body)
+        body = b'{"model":"qwen","messages":[]}'
+        selected = GATEWAY.backend_port_for_request(8083, 8085, {"qwen"}, body)
         self.assertEqual(selected, 8085)
 
     def test_cyber_uncensored_is_routed_to_fast_lane(self):
@@ -147,7 +147,7 @@ class GatewayTests(unittest.TestCase):
         for body in (b'{"model":"deepseek-v4-flash"}', b'not-json'):
             with self.subTest(body=body):
                 self.assertEqual(
-                    GATEWAY.backend_port_for_request(8083, 8085, {"mistral-small"}, body), 8083)
+                    GATEWAY.backend_port_for_request(8083, 8085, {"dolphin"}, body), 8083)
 
 
 if __name__ == "__main__":
