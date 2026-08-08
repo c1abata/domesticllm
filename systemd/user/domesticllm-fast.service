@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=%h/.config/domesticllm/fast.env
 Environment=LD_LIBRARY_PATH=/opt/local-ai/llama-current/lib
+Environment=CUDA_VISIBLE_DEVICES=1
 WorkingDirectory=%h/domesticllm
 ExecStart=/opt/local-ai/llama-current/bin/llama-server --host ${FAST_HOST} --port ${FAST_PORT} --api-key-file %h/.config/domesticllm/gateway.key --model ${LOCAL_AI_MODEL} --alias ${LOCAL_AI_MODEL_ALIAS} --threads ${LOCAL_AI_THREADS} --threads-batch ${LOCAL_AI_THREADS_BATCH} --ctx-size ${LOCAL_AI_CTX} --n-predict ${LOCAL_AI_PREDICT} --batch-size ${LOCAL_AI_BATCH} --ubatch-size ${LOCAL_AI_UBATCH} --parallel 1 --n-gpu-layers 999 --split-mode none --main-gpu 0 --cache-type-k ${LOCAL_AI_CACHE_TYPE_K} --cache-type-v ${LOCAL_AI_CACHE_TYPE_V} --cache-reuse 256 --no-ui
 Restart=on-failure
