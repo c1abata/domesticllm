@@ -12,6 +12,9 @@ from .gpu import assign as assign_gpus, discover as discover_gpus
 from .doctor import inspect as doctor_inspect
 from .lane import flash_action, read_lane_state, switch_fast
 from .bundle import create as bundle_create, import_bundle, recover as bundle_recover, verify as bundle_verify
+from .cache import (checkpoint as cache_checkpoint, inspect as cache_inspect,
+                    list_checkpoints, parse_size, prune as cache_prune,
+                    restore as cache_restore, verify_checkpoint)
 from .manifest import validate_manifest
 from .store import import_model, inspect_gguf, quarantine, verify_installed
 
@@ -119,6 +122,16 @@ def parser() -> argparse.ArgumentParser:
     recover = commands.add_parser("recover")
     recover.add_argument("--bundle", required=True)
     recover.add_argument("--allowed-signers", required=True)
+    cache = commands.add_parser("cache")
+    cache_commands = cache.add_subparsers(dest="cache_command", required=True)
+    cache_commands.add_parser("list")
+    for name in ("inspect", "checkpoint", "restore"):
+        operation = cache_commands.add_parser(name)
+        operation.add_argument("session")
+    verify_cache = cache_commands.add_parser("verify")
+    verify_cache.add_argument("session", nargs="?")
+    prune_cache = cache_commands.add_parser("prune")
+    prune_cache.add_argument("--max-size", required=True)
     return root
 
 
@@ -172,6 +185,24 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "recover":
             print(bundle_recover(pathlib.Path(args.bundle), Paths.environment(),
                                  allowed_signers=pathlib.Path(args.allowed_signers)))
+            return 0
+        if args.command == "cache":
+            paths = Paths.environment()
+            if args.cache_command == "list":
+                print(json.dumps(list_checkpoints(paths), indent=2, sort_keys=True))
+            elif args.cache_command == "inspect":
+                print(json.dumps(cache_inspect(paths, args.session), indent=2, sort_keys=True))
+            elif args.cache_command == "checkpoint":
+                print(json.dumps(cache_checkpoint(paths, args.session), sort_keys=True))
+            elif args.cache_command == "restore":
+                print(cache_restore(paths, args.session))
+            elif args.cache_command == "verify":
+                sessions = [args.session] if args.session else [item["session_id"] for item in list_checkpoints(paths)]
+                for session in sessions:
+                    verify_checkpoint(paths, session)
+                    print(session)
+            else:
+                print("\n".join(cache_prune(paths, parse_size(args.max_size))))
             return 0
         raise PDS4Error("unsupported command")
     except PDS4Error as exc:

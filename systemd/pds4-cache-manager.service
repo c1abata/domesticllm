@@ -1,0 +1,17 @@
+[Unit]
+Description=PDS4 cache quota manager
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=pds4-cache
+Group=pds4-models
+ExecStart=/opt/pds4/current/bin/pds4 cache prune --max-size 64G
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/srv/pds4 /opt/pds4 /var/lib/pds4
+ReadWritePaths=/var/cache/pds4

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run PDS4 cache manager periodically
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
