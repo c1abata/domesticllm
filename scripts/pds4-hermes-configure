@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ssh_target=""
+local_port=18080
+remote_port=8080
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+usage() {
+  echo "usage: pds4-hermes-configure --ssh-target USER@HOST [--local-port PORT] [--remote-port PORT]" >&2
+}
+valid_port() { [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; }
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --ssh-target) ssh_target="${2:?missing target}"; shift 2 ;;
+    --local-port) local_port="${2:?missing port}"; shift 2 ;;
+    --remote-port) remote_port="${2:?missing port}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage; exit 2 ;;
+  esac
+done
+[ "$(id -u)" -ne 0 ] || { echo "run as the WSL user, not root" >&2; exit 1; }
+case "$ssh_target" in
+  ""|*[!A-Za-z0-9_.@:-]*|-*|*@*@*) echo "invalid SSH target" >&2; exit 2 ;;
+esac
+valid_port "$local_port" && valid_port "$remote_port" || { echo "invalid port" >&2; exit 2; }
+command -v ssh >/dev/null || { echo "missing ssh" >&2; exit 1; }
+
+pds4_dir="$config_home/pds4"
+unit_dir="$config_home/systemd/user"
+install -d -m 0700 "$pds4_dir" "$unit_dir"
+install -m 0644 "$root/systemd/user/pds4-hermes-tunnel.service" "$unit_dir/pds4-hermes-tunnel.service"
+install -m 0600 "$root/examples/hermes/pds4-config.yaml" "$pds4_dir/hermes-config.yaml.example"
+install -m 0600 "$root/examples/hermes/pds4.env.example" "$pds4_dir/hermes.env.example"
+temporary="$(mktemp "$pds4_dir/.tunnel.XXXXXX")"
+trap 'rm -f -- "$temporary"' EXIT
+printf 'PDS4_LOCAL_BIND=127.0.0.1:%s\nPDS4_REMOTE_BIND=127.0.0.1:%s\nPDS4_SSH_TARGET=%s\n' \
+  "$local_port" "$remote_port" "$ssh_target" >"$temporary"
+chmod 0600 "$temporary"
+mv -f "$temporary" "$pds4_dir/tunnel.env"
+trap - EXIT
+
+echo "[ok] installed PDS4 Hermes examples; no service was started"
+echo "[gate] review files, then enable pds4-hermes-tunnel.service"
+echo "[telegram] store token only in WSL ~/.hermes/.env and require TELEGRAM_ALLOWED_USERS"

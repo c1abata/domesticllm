@@ -1,0 +1,32 @@
+# Merge into ~/.hermes/config.yaml. This file contains no secret.
+providers:
+  pds4:
+    api: http://127.0.0.1:18080/v1
+    key_env: PDS4_API_KEY
+    transport: chat_completions
+    models:
+      flash-q2:
+        context_length: 32768
+      qwen3-coder-q4:
+        context_length: 16384
+      mistral-small-q4:
+        context_length: 16384
+      dolphin-cyber-8b-q4:
+        context_length: 8192
+
+model:
+  provider: custom:pds4
+  default: flash-q2
+  context_length: 32768
+
+terminal:
+  backend: local
+  timeout: 300
+
+approvals:
+  mode: manual
+  timeout: 120
+
+telegram:
+  require_mention: true
+  reactions: true
