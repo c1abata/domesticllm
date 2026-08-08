@@ -24,6 +24,9 @@ WEB_ASSETS = {
 WEB_CSP = ("default-src 'self'; base-uri 'none'; connect-src 'self'; "
            "font-src 'self'; form-action 'none'; frame-ancestors 'none'; "
            "img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'")
+# DS4 exposes a compatibility alias for the same Flash GGUF. Keep the public
+# catalog canonical so the Web UI does not present a duplicate model.
+HIDDEN_MODEL_ALIASES = {"deepseek-v4-pro"}
 
 
 def read_chunked(stream, max_body: int) -> bytes:
@@ -243,6 +246,8 @@ class Gateway(http.server.BaseHTTPRequestHandler):
                 continue
             for item in models:
                 model_id = item["id"]
+                if model_id in HIDDEN_MODEL_ALIASES:
+                    continue
                 if model_id in seen:
                     continue
                 seen.add(model_id)
