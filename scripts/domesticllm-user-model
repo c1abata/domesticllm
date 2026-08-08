@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+model="${1:-}"
+models_dir="${MODEL_DIR:-/srv/local-ai/models}"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/domesticllm/fast.env"
+case "$model" in
+  dolphin) file="cognitivecomputations_Dolphin3.0-Mistral-24B-Q4_K_M.gguf" ;;
+  qwen) file="Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf" ;;
+  cyber-uncensored) file="Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf" ;;
+  status) systemctl --user --no-pager --full status domesticllm-fast.service; exit ;;
+  stop) systemctl --user stop domesticllm-fast.service; exit ;;
+  *) echo "usage: $0 {dolphin|qwen|cyber-uncensored|status|stop}" >&2; exit 2 ;;
+esac
+[ -r "$models_dir/$file" ] || { echo "missing model: $models_dir/$file" >&2; exit 1; }
+cat >"$config" <<EOF
+FAST_HOST=0.0.0.0
+FAST_PORT=8085
+CUDA_VISIBLE_DEVICES=1
+LOCAL_AI_MODEL=$models_dir/$file
+LOCAL_AI_MODEL_ALIAS=$model
+LOCAL_AI_THREADS=16
+LOCAL_AI_THREADS_BATCH=16
+LOCAL_AI_CTX=16384
+LOCAL_AI_PREDICT=4096
+LOCAL_AI_BATCH=512
+LOCAL_AI_UBATCH=128
+LOCAL_AI_CACHE_TYPE_K=q8_0
+LOCAL_AI_CACHE_TYPE_V=q8_0
+EOF
+systemctl --user restart domesticllm-fast.service
+echo "[ok] fast lane requested: $model"

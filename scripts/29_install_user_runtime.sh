@@ -20,6 +20,8 @@ actual="$(sha256sum "$MODELS_DIR/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-O
 [ "$actual" = "$expected" ] || { echo "DeepSeek SHA-256 mismatch" >&2; exit 1; }
 
 install -d -m 0700 "$CONFIG_DIR" "$UNIT_DIR" "$HOME/domesticllm/.runtime/ds4-kv"
+install -d -m 0755 "$HOME/.local/bin"
+install -m 0755 "$ROOT/scripts/domesticllm-user-model" "$HOME/.local/bin/domesticllm-user-model"
 if [ ! -e "$CONFIG_DIR/gateway.key" ]; then
   python3 -c 'import secrets; print(secrets.token_urlsafe(48))' >"$CONFIG_DIR/gateway.key"
 fi
