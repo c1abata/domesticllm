@@ -19,26 +19,56 @@ Model weights are never stored in this repository.
 ds4 (persistent tmux console)
   ├── DeepSeek V4 Flash → native DwarfStar4, SSD expert streaming, persistent KV
   └── Qwen / Mistral / Dolphin / Cyber → pinned llama.cpp fallback
+
+Hermes on WSL / Web UI / CLI-TUI
+  └── authenticated gateway → DS4 capacity lane or active llama.cpp fast lane
 ```
 
-No web server or unauthenticated LAN listener is required. The console prevents
-two large model processes from starting concurrently and exposes model,
-context, reasoning, temperature, GPU, CPU-thread and power controls in-session.
+The console remains the direct operator path. An optional dependency-free Web
+UI and the Hermes client use the authenticated gateway; DS4 itself remains on
+loopback. The stack never exposes an unauthenticated model listener. Model
+selection routes requests only to already-active allowlisted profiles and does
+not grant a browser or agent permission to control systemd.
 
 ## Validated profile
 
-The reference deployment was validated on Ubuntu, 128 GiB RAM, NVMe, and two
-NVIDIA RTX A4500 GPUs (`sm_86`):
+The target workstation is an Asus ProArt X570 class system with Ryzen 9 5950X,
+128 GiB RAM, NVMe storage, and two NVIDIA RTX A4500 20 GiB GPUs (`sm_86`). The
+validated deployment used:
 
-- DS4 commit `54b36ed9ba42da31b24f2d1a5feb075c2475dbb1`;
+- DS4 commit `54b36ed9ba42da31b24f2d1a5feb075c2475dbb1` (previous production evidence);
 - `llama.cpp` commit `876a4321163249c43ca4e986818fab5ab081f282`;
-- 100k context, 8 GiB disk KV cache, 4 GiB hot expert cache;
+- 100k context, 8 GiB disk KV cache, 6 GiB hot expert cache;
 - one GPU assigned to DS4 while the second remains available for a fast lane;
 - four-hour soak: 203/203 successful requests, including tool calls and long KV tests;
 - verified fallback inference and rollback.
 
+The current DS4 canary is the requested `ds4f-mxfp4` branch at
+`80df56af4070d0fc62f6f9682b1854f8e5be8b00`. Repository checks for this change
+ran in Ubuntu/WSL on an Intel Core i5-13420H with 14 GiB visible RAM and no CUDA
+device. Therefore build, correctness, two-A4500 activity, soak, performance and
+rollback on the target workstation remain release gates; the old installed
+release must remain available until they pass.
+
 See [vendor.lock.json](vendor.lock.json) for all immutable source/model inputs.
 Hardware results are evidence for this profile, not a guarantee for other hosts.
+
+## Components
+
+| Component | Implementation | Role |
+| --- | --- | --- |
+| Capacity runtime | pinned native DwarfStar4 CUDA | DeepSeek V4 Flash, tool calls, KV persistence |
+| Fast lane | pinned `llama.cpp` CUDA | one active Qwen/Mistral/Dolphin/Cyber profile on GPU1 |
+| Operator console | Bash + tmux | one persistent `ds4` control path |
+| CLI/TUI | Python standard library | streaming chat, TTFT/token/status telemetry |
+| Web UI | static HTML/CSS/JS + Python standard-library gateway | authenticated chat and live model selection |
+| WSL harness | Hermes Agent + SSH tunnel | local tools/files with remote inference |
+| Telegram | Hermes native gateway | allowlisted messaging from the WSL harness |
+| Automation | Bash, systemd, MCP allowlist | reproducible install, health, benchmark and agent checks |
+
+`antirez/botlib` is retained as a small-C design reference. Hermes already owns
+the Telegram session/tool lifecycle, so running a second bot bridge would create
+two competing paths and is intentionally avoided.
 
 ## Unified console
 
@@ -56,6 +86,29 @@ are present:
 ```bash
 sudo bash scripts/25_install_unified_ds4.sh
 ```
+
+## Web UI and Hermes
+
+Install the authenticated gateway only after reviewing the approved client
+CIDR. This is a network/service human gate:
+
+```bash
+sudo bash scripts/21_install_lan_gateway.sh --lan-cidr 100.64.1.25/32
+```
+
+Open `http://SERVER:8080/` and paste the gateway key. The key is kept in the
+browser tab's session storage, never in a URL or persistent local storage. The
+model selector contains only models returned by the live capacity and fast-lane
+backends.
+
+For the WSL client, first install Hermes through its reviewed upstream process,
+then prepare the offline tunnel definition:
+
+```bash
+bash scripts/28_configure_hermes_wsl.sh --ssh-target operator@server-tailnet
+```
+
+Review [Hermes on WSL](hermes.md) before enabling the user service or Telegram.
 
 ## Build and install
 
@@ -90,6 +143,8 @@ sudo MODEL_DIR=/opt/local-ai/models \
 Detailed operational documentation:
 
 - [Native DS4 runtime](docs/DS4_RUNTIME.md)
+- [DS4 MXFP4 branch assessment](docs/DS4_MXFP4.md)
+- [Current checkpoint and pending hardware gates](docs/CHECKPOINT.md)
 - [NVIDIA deployment](docs/DS4_NVIDIA.md)
 - [Models and checksums](docs/MODELS.md)
 - [Upstream mapping](docs/ANTIREZ_MAP.md)
@@ -111,15 +166,15 @@ DomesticLLM integrates but does not vendor or impersonate its upstream projects.
 The primary sources are:
 
 - [antirez/ds4](https://github.com/antirez/ds4) — MIT;
+- [antirez/botlib](https://github.com/antirez/botlib) — BSD-3-Clause;
 - [antirez/linenoise](https://github.com/antirez/linenoise) — BSD-2-Clause;
 - [antirez/sds](https://github.com/antirez/sds) — BSD-2-Clause;
-- [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) — MIT.
+- [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) — MIT;
+- [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) — MIT.
 
-The build locks use the public maintenance forks
-[`c1abata/ds4`](https://github.com/c1abata/ds4),
-[`c1abata/linenoise`](https://github.com/c1abata/linenoise), and
-[`c1abata/sds`](https://github.com/c1abata/sds), with upstream provenance
-retained in `vendor.lock.json`.
+The DS4 canary is pinned directly to the requested upstream branch commit.
+Linenoise and SDS still use the public `c1abata` maintenance forks, with
+upstream provenance retained in `vendor.lock.json`.
 
 The exact revisions are recorded in [vendor.lock.json](vendor.lock.json).
 Upstream names and trademarks remain the property of their respective owners.

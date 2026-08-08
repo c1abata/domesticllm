@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 import threading
 import unittest
+import json
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "scripts" / "domesticllm-gateway.py"
@@ -20,7 +21,12 @@ class Backend(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        body = b'{"status":"ok"}\n'
+        if self.path == "/v1/models":
+            body = json.dumps({"object": "list", "data": [{
+                "id": self.server.model_id, "object": "model", "owned_by": "local"
+            }]}).encode()
+        else:
+            body = b'{"status":"ok"}\n'
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -31,25 +37,36 @@ class Backend(http.server.BaseHTTPRequestHandler):
 class GatewayTests(unittest.TestCase):
     def setUp(self):
         self.backend = http.server.HTTPServer(("127.0.0.1", 0), Backend)
+        self.backend.model_id = "deepseek-v4-flash"
         self.backend_thread = threading.Thread(target=self.backend.serve_forever, daemon=True)
         self.backend_thread.start()
+        self.fast_backend = http.server.HTTPServer(("127.0.0.1", 0), Backend)
+        self.fast_backend.model_id = "qwen3-coder"
+        self.fast_backend_thread = threading.Thread(target=self.fast_backend.serve_forever, daemon=True)
+        self.fast_backend_thread.start()
         self.gateway = GATEWAY.Server(("127.0.0.1", 0), GATEWAY.Gateway)
         self.gateway.api_key = "x" * 48
         self.gateway.backend_host = "127.0.0.1"
         self.gateway.backend_port = self.backend.server_port
-        self.gateway.fast_backend_port = None
-        self.gateway.fast_models = set()
+        self.gateway.fast_backend_port = self.fast_backend.server_port
+        self.gateway.fast_models = {"qwen3-coder"}
         self.gateway.max_body = 1024
         self.gateway.timeout = 5
-        self.gateway.slots = threading.BoundedSemaphore(1)
+        self.gateway.web_root = SCRIPT.parents[1] / "web"
+        self.gateway.slots = {
+            self.backend.server_port: threading.BoundedSemaphore(1),
+            self.fast_backend.server_port: threading.BoundedSemaphore(1),
+        }
         self.gateway_thread = threading.Thread(target=self.gateway.serve_forever, daemon=True)
         self.gateway_thread.start()
 
     def tearDown(self):
         self.gateway.shutdown()
         self.backend.shutdown()
+        self.fast_backend.shutdown()
         self.gateway.server_close()
         self.backend.server_close()
+        self.fast_backend.server_close()
 
     def request(self, path="/health", key=None):
         connection = http.client.HTTPConnection("127.0.0.1", self.gateway.server_port, timeout=5)
@@ -68,6 +85,25 @@ class GatewayTests(unittest.TestCase):
         status, body = self.request(key="x" * 48)
         self.assertEqual(status, 200)
         self.assertIn(b'"ok"', body)
+
+    def test_web_interface_is_public_but_contains_no_secret(self):
+        connection = http.client.HTTPConnection("127.0.0.1", self.gateway.server_port, timeout=5)
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        body = response.read()
+        self.assertEqual(response.status, 200)
+        self.assertIn("frame-ancestors 'none'", response.getheader("Content-Security-Policy"))
+        self.assertEqual(response.getheader("Cross-Origin-Resource-Policy"), "same-origin")
+        self.assertIn(b"DomesticLLM", body)
+        self.assertNotIn(("x" * 48).encode(), body)
+        connection.close()
+
+    def test_model_catalog_aggregates_live_lanes(self):
+        status, body = self.request(path="/v1/models", key="x" * 48)
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        models = {item["id"]: item["domesticllm_lane"] for item in payload["data"]}
+        self.assertEqual(models, {"deepseek-v4-flash": "capacity", "qwen3-coder": "fast"})
 
     def test_routes_are_allowlisted(self):
         status, _ = self.request(path="/admin", key="x" * 48)

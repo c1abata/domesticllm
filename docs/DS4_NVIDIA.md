@@ -140,12 +140,12 @@ Il build nativo installa, quando presenti:
 ```
 
 Il runtime bloccato supporta CUDA SSD streaming. Il profilo validato dedica
-GPU0 a DS4, mantiene 4 GB di esperti caldi in VRAM e lascia GPU1 libera:
+GPU0 a DS4, mantiene 6 GB di esperti caldi in VRAM e lascia GPU1 libera:
 
 ```bash
 cd /opt/local-ai/repos/ds4
 CUDA_VISIBLE_DEVICES=0 ./ds4 -m /opt/local-ai/models/ds4flash-uncensored.gguf --cuda \
-  --ssd-streaming --ssd-streaming-cache-experts 4GB --power 100 \
+  --ssd-streaming --ssd-streaming-cache-experts 6GB --power 100 \
   -p "Rispondi solo OK"
 ./ds4-server --help
 ```

@@ -18,7 +18,7 @@ PoorHW policy:
 - Two mounted SATA disks are enough for this kit: one cache/slot path, one model path.
 - Default topology is PowerShell agent on the laptop and Ubuntu inference server over Tailscale.
 
-Upstream status to respect (locked 2026-07-28):
+Upstream status to respect (reviewed 2026-08-08):
 - primary ds4 backends are Metal, CUDA and ROCm;
 - CPU path is reference/debug;
 - CUDA SSD streaming permits a single dedicated 20 GiB GPU with an explicit expert-cache budget;
@@ -33,7 +33,10 @@ Use: inspect model metadata before deployment. Keep it out of the hot path.
 Use: reference branch to study DeepSeek V4 Flash support. For CPU serving, prefer current `ggml-org/llama.cpp` unless a specific regression requires this branch.
 
 ## botlib
-Use: reference for small C network/agent style. Cloned and built opportunistically by `scripts/20_install_antirez_tools.sh`; not wired into the inference service because Telegram bot support is not part of the critical path.
+Use: pinned reference for small, long-lived C Telegram bots. It is not wired
+into the inference service because Hermes already owns the authenticated
+Telegram, session and tool lifecycle. A future botlib component must be
+read-only observability, not a second agent bridge.
 
 ## PixelWall
 Use: optional status wall inspiration. Not part of critical inference path.

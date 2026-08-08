@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DomesticLLM</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">LOCAL INFERENCE / OPERATOR CONSOLE</p>
+      <h1>Domestic<span>LLM</span></h1>
+    </div>
+    <div id="connection-state" class="state offline"><i></i><span>non connesso</span></div>
+  </header>
+
+  <main>
+    <aside class="panel controls">
+      <section>
+        <h2>Accesso</h2>
+        <label for="api-key">Gateway key</label>
+        <div class="key-row">
+          <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Incolla la chiave">
+          <button id="connect" type="button">Connetti</button>
+        </div>
+        <p class="hint">Conservata solo per questa scheda. Mai inserita nell'URL.</p>
+      </section>
+
+      <section>
+        <h2>Runtime</h2>
+        <label for="model">Modello attivo</label>
+        <select id="model" disabled><option>Connetti il gateway</option></select>
+
+        <div class="grid-two">
+          <div>
+            <label for="reasoning">Reasoning</label>
+            <select id="reasoning">
+              <option value="direct">Direct</option>
+              <option value="high" selected>High</option>
+              <option value="max">Max</option>
+            </select>
+          </div>
+          <div>
+            <label for="temperature">Temperatura</label>
+            <input id="temperature" type="number" value="0.6" min="0" max="2" step="0.1">
+          </div>
+        </div>
+
+        <label for="max-tokens">Token risposta</label>
+        <input id="max-tokens" type="number" value="2048" min="1" max="16384" step="128">
+      </section>
+
+      <section class="telemetry">
+        <h2>Ultimo turno</h2>
+        <dl>
+          <div><dt>TTFT</dt><dd id="ttft">—</dd></div>
+          <div><dt>Durata</dt><dd id="duration">—</dd></div>
+          <div><dt>Prompt</dt><dd id="prompt-tokens">—</dd></div>
+          <div><dt>Output</dt><dd id="output-tokens">—</dd></div>
+        </dl>
+      </section>
+    </aside>
+
+    <section class="panel chat-shell">
+      <div class="chat-head">
+        <div>
+          <p class="eyebrow">SESSIONE EFFIMERA</p>
+          <h2>Chat</h2>
+        </div>
+        <button id="clear" class="quiet" type="button">Nuova sessione</button>
+      </div>
+
+      <div id="messages" class="messages" aria-live="polite">
+        <article class="message system">
+          <div class="role">SISTEMA</div>
+          <p>Connetti il gateway. Saranno mostrati solo i modelli realmente attivi sul server.</p>
+        </article>
+      </div>
+
+      <form id="composer">
+        <label class="sr-only" for="prompt">Messaggio</label>
+        <textarea id="prompt" rows="3" placeholder="Scrivi una richiesta…  Invio: Ctrl+Enter" disabled></textarea>
+        <div class="composer-actions">
+          <span id="request-state">in attesa</span>
+          <button id="stop" class="quiet" type="button" disabled>Ferma</button>
+          <button id="send" type="submit" disabled>Invia</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer>Loopback runtime · gateway autenticato · nessun controllo servizi dal browser</footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>

@@ -71,7 +71,7 @@ make -C "$SOURCE" -j"$JOBS" cuda CUDA_ARCH="$arch" \
 # Model correctness is instead an explicit SSD-streaming hardware acceptance
 # gate after artifact installation.
 make -C "$SOURCE" -j"$JOBS" \
-  ds4_test ds4_agent_test ds4-eval q4k-dot-test \
+  ds4_test ds4_agent_test ds4-eval q4k-dot-test mxfp4-dot-test \
   tests/test_layer_pack tests/test_engine_mgpu_placement tests/test_gpu_args \
   tests/test_sampling CUDA_ARCH="$arch" CFLAGS="$cflags" NVCCFLAGS="$nvccflags"
 (cd "$SOURCE" && ./ds4-eval --self-test-extractors)

@@ -31,14 +31,14 @@ e il download restano un gate umano e non fanno parte di questi script.
 
 ```bash
 scripts/14_build_ds4_native.sh \
-  --source /srv/build/ds4-54b36ed9ba42da31b24f2d1a5feb075c2475dbb1
+  --source /srv/build/ds4-80df56af4070d0fc62f6f9682b1854f8e5be8b00
 
 sudo install -o root -g localai -m 0440 \
   /percorso/verificato/Huihui-DeepSeek-V4-Flash-BF16-abliterated-ds4-Q2.gguf \
   /opt/local-ai/models/
 
 sudo scripts/15_install_ds4_native.sh \
-  --artifact artifacts/ds4-54b36ed9ba42da31b24f2d1a5feb075c2475dbb1 \
+  --artifact artifacts/ds4-80df56af4070d0fc62f6f9682b1854f8e5be8b00 \
   --start-canary
 ```
 
@@ -76,9 +76,14 @@ log del profiler restano necessari per i dati di cache hit affidabili.
 
 Il test di quattro ore resta un gate hardware. Il profilo domesticLLM usa il
 percorso CUDA SSD streaming esplicito del runtime bloccato: GPU0, cache esperti
-da 4 GB, `--power 100`. Il budget conserva margine per prefill oltre 2k token;
+da 6 GB, `--power 100`. Il budget conserva margine per prefill oltre 2k token;
 8 GB ha prodotto OOM sul target. Non usa unified memory né spill implicito. GPU1 resta
 isolata per una fast lane separata, da riattivare solo dopo l'accettazione DS4.
+
+`DS4_BATCHED_SESSIONS=1` è intenzionale con contesto 100k: ogni sessione
+aggiuntiva possiede un KV residente. La prova a 2 sessioni è un canary separato
+con gate di correttezza, VRAM/RSS, fairness, soak e rollback; vedere
+`docs/DS4_MXFP4.md`.
 
 ## Promozione e rollback
 

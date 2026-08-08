@@ -1,0 +1,27 @@
+# Merge this narrow provider into ~/.hermes/config.yaml after creating the
+# DomesticLLM SSH tunnel. Keep secrets in ~/.hermes/.env, never in this file.
+providers:
+  domestic:
+    api: http://127.0.0.1:18080/v1
+    key_env: DOMESTICLLM_API_KEY
+    transport: chat_completions
+    models:
+      deepseek-v4-flash:
+        context_length: 100000
+
+model:
+  provider: custom:domestic
+  default: deepseek-v4-flash
+  context_length: 100000
+
+terminal:
+  backend: local
+  timeout: 300
+
+approvals:
+  mode: manual
+  timeout: 120
+
+telegram:
+  require_mention: true
+  reactions: true

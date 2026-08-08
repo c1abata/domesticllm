@@ -35,6 +35,10 @@ systemctl is-active --quiet local-ai-ds4-native.service || {
 install -d -o root -g root -m 0755 /usr/local/libexec/local-ai
 install -o root -g root -m 0555 "$ROOT/scripts/domesticllm-gateway.py" \
   /usr/local/libexec/local-ai/domesticllm-gateway
+install -d -o root -g root -m 0755 /usr/local/share/domesticllm/web
+for asset in index.html app.css app.js; do
+  install -o root -g root -m 0444 "$ROOT/web/$asset" "/usr/local/share/domesticllm/web/$asset"
+done
 install -o root -g root -m 0444 "$ROOT/systemd/$UNIT" "/etc/systemd/system/$UNIT"
 install -d -o root -g root -m 0755 "/etc/systemd/system/$UNIT.d"
 dropin="$(mktemp)"
@@ -53,3 +57,4 @@ systemctl enable --now "$UNIT"
 systemctl is-active --quiet "$UNIT" || { systemctl status --no-pager "$UNIT"; exit 1; }
 echo "[ok] authenticated gateway listening on 0.0.0.0:8080 for $LAN_CIDR"
 echo "[info] DS4 remains isolated on 127.0.0.1:8083"
+echo "[info] Web UI: http://SERVER_IP:8080/ (gateway key required for API access)"

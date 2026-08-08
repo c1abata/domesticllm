@@ -18,6 +18,8 @@ class RepositoryPolicyTests(unittest.TestCase):
             if line and not line.startswith("#") and "=" in line
         )
         self.assertEqual(values["DS4_COMMIT"], lock["sources"]["ds4"]["commit"])
+        self.assertEqual(values["BOTLIB_COMMIT"], lock["sources"]["botlib"]["commit"])
+        self.assertEqual(values["HERMES_COMMIT"], lock["sources"]["hermes_agent"]["commit"])
         self.assertEqual(values["LLAMA_COMMIT"], lock["sources"]["llama_cpp"]["commit"])
         self.assertEqual(
             values["DS4_Q2_IMATRIX_SHA256"],
@@ -162,11 +164,29 @@ class RepositoryPolicyTests(unittest.TestCase):
         launcher = (ROOT / "scripts/domesticllm-lan").read_text(encoding="utf-8")
         self.assertIn("IPAddressDeny=any", unit)
         self.assertIn("IPAddressAllow=localhost", unit)
+        self.assertNotRegex(unit, r"IPAddressAllow=10\.")
         self.assertIn("--lan-cidr", installer)
         self.assertIn("ipaddress.ip_network", installer)
         self.assertIn("IPAddressAllow=%s", installer)
         self.assertNotRegex(launcher, r"10\.\d+\.\d+\.\d+")
         self.assertIn("DOMESTICLLM_LAN_HOST", launcher)
+
+    def test_web_and_hermes_clients_keep_secrets_out_of_urls(self):
+        web = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertNotIn("innerHTML", web)
+        self.assertNotIn("localStorage", web)
+        self.assertNotIn("location.search", web)
+        self.assertIn("sessionStorage", web)
+        self.assertIn('"Authorization"', web)
+
+        hermes = (ROOT / "examples" / "hermes" / "config.yaml").read_text(encoding="utf-8")
+        self.assertIn("key_env: DOMESTICLLM_API_KEY", hermes)
+        self.assertNotIn("CHIAVE_GATEWAY", hermes)
+        tunnel = (ROOT / "systemd" / "user" / "domesticllm-hermes-tunnel.service").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("BatchMode=yes", tunnel)
+        self.assertIn("ExitOnForwardFailure=yes", tunnel)
 
 
 if __name__ == "__main__":

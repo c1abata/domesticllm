@@ -20,8 +20,9 @@ dist/
 artifacts/
 benchmarks/results/
 .git.empty.backup-*/
-
+goal.md
 # Editor and OS noise.
 .DS_Store
 Thumbs.db
 *.swp
+TODO.md

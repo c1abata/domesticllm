@@ -21,6 +21,7 @@ ExecStart=/opt/local-ai/current/bin/ds4-server \
   --tokens ${DS4_TOKENS} \
   --threads ${DS4_THREADS} \
   --power ${DS4_POWER} \
+  --batched-session ${DS4_BATCHED_SESSIONS} \
   --ssd-streaming \
   --ssd-streaming-cache-experts ${DS4_SSD_STREAMING_CACHE_EXPERTS} \
   --kv-disk-dir ${DS4_KV_DISK_DIR} \

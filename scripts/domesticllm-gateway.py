@@ -9,12 +9,21 @@ import http.client
 import http.server
 import json
 import os
+import pathlib
 import socket
 import threading
 import urllib.parse
 
 HOP_HEADERS = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
                "te", "trailers", "transfer-encoding", "upgrade"}
+WEB_ASSETS = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/app.css": ("app.css", "text/css; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+}
+WEB_CSP = ("default-src 'self'; base-uri 'none'; connect-src 'self'; "
+           "font-src 'self'; form-action 'none'; frame-ancestors 'none'; "
+           "img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'")
 
 
 def read_chunked(stream, max_body: int) -> bytes:
@@ -53,6 +62,26 @@ def backend_port_for_request(default_port: int, fast_port: int | None,
     return fast_port if model in fast_models else default_port
 
 
+def fetch_models(host: str, port: int, timeout: int, key: str | None = None) -> list[dict]:
+    connection = http.client.HTTPConnection(host, port, timeout=timeout)
+    headers = {"Accept": "application/json"}
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    try:
+        connection.request("GET", "/v1/models", headers=headers)
+        response = connection.getresponse()
+        body = response.read(1024 * 1024)
+        if not 200 <= response.status < 300:
+            raise OSError(f"model catalog returned HTTP {response.status}")
+        payload = json.loads(body)
+        models = payload.get("data")
+        if not isinstance(models, list):
+            raise ValueError("model catalog has no data array")
+        return [item for item in models if isinstance(item, dict) and isinstance(item.get("id"), str)]
+    finally:
+        connection.close()
+
+
 class Gateway(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "DomesticLLMGateway/1"
@@ -84,12 +113,18 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         self._proxy()
 
     def _proxy(self) -> None:
+        parsed = urllib.parse.urlsplit(self.path)
+        if self.command == "GET" and not parsed.query and not parsed.fragment and parsed.path in WEB_ASSETS:
+            self._serve_web(parsed.path)
+            return
         if not self._authorized():
             self._json_error(401, "authentication required")
             return
-        parsed = urllib.parse.urlsplit(self.path)
         if parsed.query or parsed.fragment or not (parsed.path == "/health" or parsed.path.startswith("/v1/")):
             self._json_error(404, "route not available")
+            return
+        if self.command == "GET" and parsed.path == "/v1/models" and self.server.fast_backend_port:
+            self._serve_models()
             return
         transfer_encoding = self.headers.get("Transfer-Encoding", "").casefold()
         try:
@@ -109,7 +144,10 @@ class Gateway(http.server.BaseHTTPRequestHandler):
                 body = read_chunked(self.rfile, self.server.max_body)
             else:
                 body = self.rfile.read(length) if length else None
-            acquired = self.server.slots.acquire(timeout=self.server.timeout)
+            slot = self.server.slots[backend_port_for_request(
+                self.server.backend_port, self.server.fast_backend_port,
+                self.server.fast_models, body)]
+            acquired = slot.acquire(timeout=self.server.timeout)
             if not acquired:
                 self._json_error(429, "model is busy")
                 return
@@ -161,7 +199,69 @@ class Gateway(http.server.BaseHTTPRequestHandler):
             if backend:
                 backend.close()
             if acquired:
-                self.server.slots.release()
+                slot.release()
+
+    def _serve_web(self, path: str) -> None:
+        if not self.server.web_root:
+            self._json_error(404, "web interface not installed")
+            return
+        filename, content_type = WEB_ASSETS[path]
+        target = self.server.web_root / filename
+        try:
+            body = target.read_bytes()
+        except OSError:
+            self._json_error(404, "web interface not installed")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy", WEB_CSP)
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_models(self) -> None:
+        data: list[dict] = []
+        status = {}
+        lanes = (
+            ("capacity", self.server.backend_port, None),
+            ("fast", self.server.fast_backend_port, self.server.api_key),
+        )
+        seen = set()
+        for lane, port, key in lanes:
+            try:
+                models = fetch_models(self.server.backend_host, port, min(self.server.timeout, 10), key)
+                status[lane] = "online"
+            except (OSError, http.client.HTTPException, json.JSONDecodeError, ValueError):
+                status[lane] = "offline"
+                continue
+            for item in models:
+                model_id = item["id"]
+                if model_id in seen:
+                    continue
+                seen.add(model_id)
+                model = dict(item)
+                model["domesticllm_lane"] = lane
+                data.append(model)
+        if not data and all(value == "offline" for value in status.values()):
+            self._json_error(502, "model backends unavailable")
+            return
+        body = json.dumps({"object": "list", "data": data,
+                           "domesticllm": {"backends": status}}, separators=(",", ":")).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
+        self.close_connection = True
 
 
 class Server(http.server.ThreadingHTTPServer):
@@ -188,12 +288,17 @@ def main() -> int:
     parser.add_argument("--backend-port", type=int, default=8083)
     parser.add_argument("--fast-backend-port", type=int)
     parser.add_argument("--fast-models", default="mistral-small,dolphin,qwen3-coder,cyber-uncensored")
+    parser.add_argument("--web-root")
+    parser.add_argument("--default-concurrency", type=int, default=1)
+    parser.add_argument("--fast-concurrency", type=int, default=1)
     parser.add_argument("--api-key-file", required=True)
     parser.add_argument("--max-body", type=int, default=16 * 1024 * 1024)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
     if args.backend_host not in {"127.0.0.1", "::1", "localhost"}:
         parser.error("backend must be loopback")
+    if args.default_concurrency < 1 or args.fast_concurrency < 1:
+        parser.error("concurrency must be at least one")
     key = load_key(args.api_key_file)
     server = Server((args.listen, args.port), Gateway)
     server.api_key = key
@@ -203,7 +308,10 @@ def main() -> int:
     server.fast_models = {model.strip() for model in args.fast_models.split(",") if model.strip()}
     server.max_body = args.max_body
     server.timeout = args.timeout
-    server.slots = threading.BoundedSemaphore(1)
+    server.web_root = pathlib.Path(args.web_root).resolve() if args.web_root else None
+    server.slots = {args.backend_port: threading.BoundedSemaphore(args.default_concurrency)}
+    if args.fast_backend_port:
+        server.slots[args.fast_backend_port] = threading.BoundedSemaphore(args.fast_concurrency)
     server.serve_forever(poll_interval=0.25)
     return 0
 

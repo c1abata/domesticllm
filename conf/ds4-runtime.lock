@@ -1,10 +1,12 @@
 # Immutable inputs for the native DS4 runtime. This is data, not a shell script.
 LOCK_SCHEMA=1
 DS4_REPO_URL=https://github.com/antirez/ds4.git
-DS4_COMMIT=54b36ed9ba42da31b24f2d1a5feb075c2475dbb1
+DS4_BRANCH=ds4f-mxfp4
+DS4_COMMIT=80df56af4070d0fc62f6f9682b1854f8e5be8b00
 DS4_LICENSE=MIT
 DS4_BUILD_TARGET=cuda
 DS4_CUDA_ARCH=sm_86
+DS4_MXFP4_CUDA_SUPPORTED=0
 LLAMA_REPO_URL=https://github.com/ggml-org/llama.cpp.git
 LLAMA_COMMIT=876a4321163249c43ca4e986818fab5ab081f282
 LLAMA_LICENSE=MIT
