@@ -116,6 +116,22 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
         raise PDS4Error("requested model does not belong to the fast lane")
     run = runner or Systemctl()
     check = probe or http_probe
+
+    def wait_ready(port: int, selected_model: str) -> None:
+        if probe is not None:
+            check(port, selected_model, api_key)
+            return
+        deadline = time.monotonic() + 20 * 60
+        last_error: Exception | None = None
+        while time.monotonic() < deadline:
+            try:
+                check(port, selected_model, api_key)
+                return
+            except PDS4Error as exc:
+                last_error = exc
+                time.sleep(2)
+        raise PDS4Error(f"backend readiness timed out on port {port}") from last_error
+
     lock_path = paths.at("/run/pds4/fast.lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+") as lock:
@@ -135,11 +151,11 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
                 run("stop", f"pds4-fast@{previous_model}.service")
             atomic_write(paths.at("/run/pds4/fast-canary.env"), _fast_environment(manifest, paths, 8086), 0o644)
             run("start", candidate)
-            check(8086, model_id, api_key)
+            wait_ready(8086, model_id)
             run("stop", candidate)
             atomic_write(paths.at("/etc/pds4/lanes/fast.env"), _fast_environment(manifest, paths, 8085), 0o644)
             run("start", primary)
-            check(8085, model_id, api_key)
+            wait_ready(8085, model_id)
             _promote_manifest(model_id, paths)
             state = write_lane_state(paths, "fast", "ready", model_id)
             _audit(paths, {"operation": "fast-switch", "phase": "commit", "requested": model_id})
@@ -155,7 +171,7 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
                 atomic_write(paths.at("/etc/pds4/lanes/fast.env"),
                              _fast_environment(previous_manifest, paths, 8085), 0o644)
                 run("start", f"pds4-fast@{previous_model}.service")
-                check(8085, previous_model, api_key)
+                wait_ready(8085, previous_model)
                 state = write_lane_state(paths, "fast", "ready", previous_model,
                                          f"rollback after {type(exc).__name__}")
             else:

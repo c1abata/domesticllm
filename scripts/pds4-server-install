@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+
+repo=""
+ds4_runtime=""
+llama_runtime=""
+models_dir=""
+sources_dir=""
+data_root=""
+flash_gpu=""
+fast_gpu=""
+listen=""
+allow_cidr=""
+version=""
+fast_model=qwen3-coder-q4
+activate=0
+
+usage() {
+  cat <<'EOF'
+usage: sudo pds4-server-install --repo DIR --ds4-runtime DIR --llama-runtime DIR \
+  --models-dir DIR --sources-dir DIR --data-root DIR --flash-gpu GPU-UUID \
+  --fast-gpu GPU-UUID --listen ADDRESS --allow-cidr CIDR --version VERSION [--activate]
+
+Installs a pinned PDS4 release, imports local verified weights, assigns both GPU
+UUIDs and optionally replaces the legacy user services transactionally.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --repo) repo="${2:?missing repository}"; shift 2 ;;
+    --ds4-runtime) ds4_runtime="${2:?missing DS4 runtime}"; shift 2 ;;
+    --llama-runtime) llama_runtime="${2:?missing llama.cpp runtime}"; shift 2 ;;
+    --models-dir) models_dir="${2:?missing models directory}"; shift 2 ;;
+    --sources-dir) sources_dir="${2:?missing sources directory}"; shift 2 ;;
+    --data-root) data_root="${2:?missing data root}"; shift 2 ;;
+    --flash-gpu) flash_gpu="${2:?missing Flash GPU UUID}"; shift 2 ;;
+    --fast-gpu) fast_gpu="${2:?missing Fast GPU UUID}"; shift 2 ;;
+    --listen) listen="${2:?missing listen address}"; shift 2 ;;
+    --allow-cidr) allow_cidr="${2:?missing allowed CIDR}"; shift 2 ;;
+    --version) version="${2:?missing version}"; shift 2 ;;
+    --fast-model) fast_model="${2:?missing fast model}"; shift 2 ;;
+    --activate) activate=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+
+[ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
+for required in repo ds4_runtime llama_runtime models_dir sources_dir data_root flash_gpu fast_gpu listen allow_cidr version; do
+  [ -n "${!required}" ] || { echo "missing --${required//_/-}" >&2; exit 2; }
+done
+case "$data_root" in /srv/*) ;; *) echo "data root must be below /srv" >&2; exit 2 ;; esac
+case "$data_root$models_dir$sources_dir$repo$ds4_runtime$llama_runtime" in
+  *$'\n'*|*$'\r'*|*' '*) echo "deployment paths must not contain whitespace" >&2; exit 2 ;;
+esac
+[[ "$flash_gpu" =~ ^GPU-[0-9a-fA-F-]+$ ]] && [[ "$fast_gpu" =~ ^GPU-[0-9a-fA-F-]+$ ]] || {
+  echo "invalid GPU UUID" >&2
+  exit 2
+}
+[ "$flash_gpu" != "$fast_gpu" ] || { echo "GPU UUIDs must be different" >&2; exit 2; }
+python3 - "$listen" "$allow_cidr" <<'PY'
+import ipaddress
+import sys
+address = ipaddress.ip_address(sys.argv[1])
+network = ipaddress.ip_network(sys.argv[2], strict=False)
+if address.is_unspecified or address.is_loopback or address.version != network.version:
+    raise SystemExit("invalid LAN address or CIDR")
+PY
+for path in "$repo" "$ds4_runtime" "$llama_runtime" "$models_dir" "$sources_dir"; do
+  [ -d "$path" ] || { echo "required directory is missing: $path" >&2; exit 1; }
+done
+[ -x "$repo/scripts/pds4-install" ] || { echo "invalid PDS4 repository image" >&2; exit 1; }
+for source_bundle in ds4.git.bundle llama.cpp.git.bundle; do
+  [ -f "$sources_dir/$source_bundle" ] || { echo "missing source bundle: $source_bundle" >&2; exit 1; }
+done
+
+install -d -o root -g root -m 0755 "$data_root" /srv/pds4
+if ! mountpoint -q /srv/pds4; then
+  if find /srv/pds4 -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    echo "/srv/pds4 is not empty and is not the PDS4 data mount" >&2
+    exit 1
+  fi
+  mount --bind "$data_root" /srv/pds4
+fi
+fstab_record="$data_root /srv/pds4 none bind,nofail 0 0"
+if ! grep -Fqx "$fstab_record" /etc/fstab; then
+  printf '%s\n' "$fstab_record" >>/etc/fstab
+fi
+
+PDS4_VERSION="$version" PDS4_DS4_RUNTIME="$ds4_runtime" \
+  PDS4_LLAMA_RUNTIME="$llama_runtime" "$repo/scripts/pds4-install"
+install -m 0444 "$sources_dir/ds4.git.bundle" /srv/pds4/sources/ds4.git.bundle
+install -m 0444 "$sources_dir/llama.cpp.git.bundle" /srv/pds4/sources/llama.cpp.git.bundle
+install -m 0444 "$repo/build/toolchain.lock" /srv/pds4/toolchains/toolchain.lock
+install -m 0444 "$repo/LICENSE" /srv/pds4/licenses/PDS4-LICENSE
+install -m 0444 "$ds4_runtime/LICENSE" /srv/pds4/licenses/DS4-LICENSE
+
+for manifest in "$repo"/models.d/*.json; do
+  /opt/pds4/current/bin/pds4 model import "$manifest" "$models_dir"
+done
+/opt/pds4/current/bin/pds4 gpu probe --flash "$flash_gpu" --fast "$fast_gpu"
+/opt/pds4/current/bin/pds4-gateway-configure --listen "$listen" --allow-cidr "$allow_cidr"
+systemctl daemon-reload
+/opt/pds4/current/bin/pds4 doctor
+
+if [ "$activate" -eq 0 ]; then
+  echo "[ok] PDS4 is installed and verified; legacy services were not changed"
+  exit 0
+fi
+
+legacy_user="${SUDO_USER:-}"
+legacy_uid=""
+legacy_units=(domesticllm-gateway.service domesticllm-fast.service domesticllm-ds4.service)
+legacy_active=()
+legacy_enabled=()
+if [ -z "$legacy_user" ] || [ "$legacy_user" = root ]; then
+  echo "--activate requires sudo from the legacy service user" >&2
+  exit 1
+fi
+if [ -n "$legacy_user" ] && [ "$legacy_user" != root ]; then
+  legacy_uid="$(id -u "$legacy_user")"
+  for unit in "${legacy_units[@]}"; do
+    if sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+      systemctl --user is-enabled --quiet "$unit"; then
+      legacy_enabled+=("$unit")
+    fi
+    if sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+      systemctl --user is-active --quiet "$unit"; then
+      legacy_active+=("$unit")
+    fi
+  done
+fi
+
+restore_legacy() {
+  echo "[rollback] stopping PDS4 and restoring prior user services" >&2
+  systemctl stop pds4-gateway.service "pds4-fast@$fast_model.service" pds4-flash.service 2>/dev/null || true
+  for unit in "${legacy_enabled[@]}"; do
+    sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+      systemctl --user enable "$unit" || true
+  done
+  for unit in "${legacy_active[@]}"; do
+    sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+      systemctl --user start "$unit" || true
+  done
+}
+trap restore_legacy ERR
+for unit in "${legacy_units[@]}"; do
+  sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+    systemctl --user disable --now "$unit"
+done
+
+/opt/pds4/current/bin/pds4 lane start flash
+flash_ready=0
+for _ in $(seq 1 180); do
+  if curl -fsS --max-time 5 http://127.0.0.1:8082/health >/dev/null 2>&1; then
+    flash_ready=1
+    break
+  fi
+  sleep 5
+done
+[ "$flash_ready" -eq 1 ] || { echo "Flash lane readiness timed out" >&2; false; }
+gateway_key="$(</etc/pds4/gateway.key)"
+/opt/pds4/current/bin/pds4 lane use fast "$fast_model"
+systemctl start pds4-gateway.service
+curl -fsS --max-time 10 -H "Authorization: Bearer $gateway_key" \
+  "http://$listen:8080/v1/models" >/dev/null
+unset gateway_key
+systemctl enable pds4-flash.service "pds4-fast@$fast_model.service" \
+  pds4-gateway.service pds4-cache-manager.timer
+trap - ERR
+echo "[ok] PDS4 dual lane is active; legacy user services remain stopped"
