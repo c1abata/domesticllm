@@ -27,20 +27,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--listen", required=True)
     parser.add_argument("--allow-cidr", required=True)
+    parser.add_argument("--tailscale-cidr", default="100.64.0.0/10")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error("run as root")
     address = ipaddress.ip_address(args.listen)
     network = ipaddress.ip_network(args.allow_cidr, strict=False)
-    if address.is_unspecified or address.is_loopback or not (1 <= args.port <= 65535):
+    tailscale = ipaddress.ip_network(args.tailscale_cidr, strict=False)
+    if address.is_loopback or not (1 <= args.port <= 65535):
         parser.error("LAN listen address and port are invalid")
     if address.version != network.version:
         parser.error("listen address and allowed CIDR use different families")
     atomic(pathlib.Path("/etc/pds4/pds4.conf"),
            f"PDS4_GATEWAY_LISTEN={address}\nPDS4_GATEWAY_PORT={args.port}\n", 0o644)
     atomic(pathlib.Path("/etc/systemd/system/pds4-gateway.service.d/20-lan.conf"),
-           f"[Service]\nIPAddressAllow={network}\n", 0o644)
+           f"[Service]\nIPAddressAllow={network}\nIPAddressAllow={tailscale}\n", 0o644)
     print("configured PDS4 LAN scope; run systemctl daemon-reload and restart after review")
     return 0
 

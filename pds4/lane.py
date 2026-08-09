@@ -88,7 +88,8 @@ def http_probe(port: int, model: str, key: str | None = None) -> None:
 
 def _fast_environment(manifest: dict[str, Any], paths: Paths, port: int) -> bytes:
     weights = next(item for item in manifest["artifacts"] if item["role"] == "weights")
-    context = 8192 if manifest["id"] == "dolphin-cyber-8b-q4" else min(manifest["context_tested"], 16384)
+    # Hermes Agent requires a 64k working window for tool use.
+    context = 65536
     values = {
         "PDS4_FAST_MODEL": str(blob_path(paths, weights["sha256"])),
         "PDS4_FAST_ALIAS": manifest["id"], "PDS4_FAST_HOST": "127.0.0.1",
