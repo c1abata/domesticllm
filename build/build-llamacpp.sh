@@ -12,3 +12,9 @@ cmake -S "$source_dir" -B "$output_dir" \
   -DLLAMA_BUILD_UI=OFF -DLLAMA_USE_PREBUILT_UI=OFF \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
 cmake --build "$output_dir" --parallel "${JOBS:-1}"
+
+# Keep the runtime layout independent from the CMake build tree.  llama.cpp
+# places shared libraries beside its executables; PDS4 releases deliberately
+# keep executables and libraries in separate, immutable directories.
+install -d "$output_dir/lib"
+find "$output_dir/bin" -maxdepth 1 -type f -name '*.so*' -exec cp -a {} "$output_dir/lib/" \;
