@@ -189,8 +189,16 @@ done
 gateway_key="$(</etc/pds4/gateway.key)"
 /opt/pds4/current/bin/pds4 lane use fast "$fast_model"
 systemctl start pds4-gateway.service
-curl -fsS --max-time 10 -H "Authorization: Bearer $gateway_key" \
-  "http://$listen:8080/v1/models" >/dev/null
+gateway_ready=0
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 5 -H "Authorization: Bearer $gateway_key" \
+      "http://$listen:8080/v1/models" >/dev/null 2>&1; then
+    gateway_ready=1
+    break
+  fi
+  sleep 2
+done
+[ "$gateway_ready" -eq 1 ] || { echo "gateway readiness failed" >&2; false; }
 unset gateway_key
 systemctl enable pds4-flash.service "pds4-fast@$fast_model.service" \
   pds4-gateway.service pds4-cache-manager.timer
