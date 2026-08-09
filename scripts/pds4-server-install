@@ -51,6 +51,7 @@ done
 for required in repo ds4_runtime llama_runtime models_dir sources_dir data_root flash_gpu fast_gpu listen allow_cidr version; do
   [ -n "${!required}" ] || { echo "missing --${required//_/-}" >&2; exit 2; }
 done
+case "$version" in *[!A-Za-z0-9._-]*|"") echo "invalid release version" >&2; exit 2 ;; esac
 case "$data_root" in /srv/*) ;; *) echo "data root must be below /srv" >&2; exit 2 ;; esac
 case "$data_root$models_dir$sources_dir$repo$ds4_runtime$llama_runtime" in
   *$'\n'*|*$'\r'*|*' '*) echo "deployment paths must not contain whitespace" >&2; exit 2 ;;
@@ -89,8 +90,18 @@ if ! grep -Fqx "$fstab_record" /etc/fstab; then
   printf '%s\n' "$fstab_record" >>/etc/fstab
 fi
 
-PDS4_VERSION="$version" PDS4_DS4_RUNTIME="$ds4_runtime" \
-  PDS4_LLAMA_RUNTIME="$llama_runtime" "$repo/scripts/pds4-install"
+release="/opt/pds4/releases/$version"
+if [ -e "$release" ]; then
+  [ "$(readlink -f /opt/pds4/current)" = "$release" ] || {
+    echo "release exists but is not current: $release" >&2
+    exit 1
+  }
+  (cd "$release" && sha256sum -c runtime.sha256 >/dev/null)
+  echo "[ok] reusing verified PDS4 release $version"
+else
+  PDS4_VERSION="$version" PDS4_DS4_RUNTIME="$ds4_runtime" \
+    PDS4_LLAMA_RUNTIME="$llama_runtime" "$repo/scripts/pds4-install"
+fi
 install -m 0444 "$sources_dir/ds4.git.bundle" /srv/pds4/sources/ds4.git.bundle
 install -m 0444 "$sources_dir/llama.cpp.git.bundle" /srv/pds4/sources/llama.cpp.git.bundle
 install -m 0444 "$repo/build/toolchain.lock" /srv/pds4/toolchains/toolchain.lock
