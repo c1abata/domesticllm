@@ -39,9 +39,9 @@ environment, then start the server on loopback.
 
 The default endpoint is `http://127.0.0.1:8080/v1`. `llama-server` supplies
 the OpenAI-compatible API directly, so an extra proxy is unnecessary for one
-model. The supplied `llmm` configuration deliberately listens on `0.0.0.0`
-and exposes the API and WebUI without authentication on the trusted operator
-network.
+model. The supplied `llmm` configuration exposes the API without
+authentication on the trusted operator network. Its dedicated WebChat runs on
+port 8081.
 
 ## CPU guidance
 
@@ -80,3 +80,5 @@ For the operator TUI, connect to the server and run:
 ```bash
 ssh -t ale@10.25.13.22 /home/ale/cpu-inference/scripts/tui.py
 ```
+
+The stable operator WebChat is available at `http://10.25.13.22:8081/`.

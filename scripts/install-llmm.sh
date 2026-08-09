@@ -16,8 +16,10 @@ CPU_TARGET="$CPU_TARGET" LLAMA_CPP_SOURCE_DIR="$source_dir" LLAMA_CPP_BUILD_DIR=
   "$project_dir/scripts/build-llama.sh"
 
 sudo -n install -m 0644 "$project_dir/deploy/cpu-inference.service" /etc/systemd/system/cpu-inference.service
+sudo -n install -m 0644 "$project_dir/deploy/cpu-inference-webchat.service" /etc/systemd/system/cpu-inference-webchat.service
 sudo -n systemctl daemon-reload
 sudo -n systemctl disable --now pds4-fast@dolphin-cyber-8b-q4.service pds4-gateway.service
 sudo -n systemctl disable --now pds4-flash.service || true
 sudo -n systemctl enable --now cpu-inference.service
+sudo -n systemctl enable --now cpu-inference-webchat.service
 sudo -n systemctl --no-pager --full status cpu-inference.service

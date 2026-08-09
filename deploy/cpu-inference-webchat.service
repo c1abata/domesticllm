@@ -1,0 +1,28 @@
+[Unit]
+Description=CPU Inference operator WebChat
+After=network-online.target cpu-inference.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ale
+Group=ale
+WorkingDirectory=/home/ale/cpu-inference
+ExecStart=/home/ale/cpu-inference/scripts/webchat.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadOnlyPaths=/home/ale/cpu-inference
+
+[Install]
+WantedBy=multi-user.target
