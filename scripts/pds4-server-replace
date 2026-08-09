@@ -29,11 +29,11 @@ done
 id "$legacy_user" >/dev/null 2>&1 || { echo "unknown legacy user: $legacy_user" >&2; exit 1; }
 
 echo "[purge] stopping any in-flight PDS4 deployment"
-for pid in $(pgrep -f "$repo/scripts/pds4-server-install" || true); do
+for pid in $(pgrep -f '/home/ale/pds4-deploy/.*/repo/scripts/pds4-server-install' || true); do
   [ "$pid" -eq "$$" ] || kill -TERM "$pid" 2>/dev/null || true
 done
 sleep 2
-for pid in $(pgrep -f "$repo/scripts/pds4-server-install" || true); do
+for pid in $(pgrep -f '/home/ale/pds4-deploy/.*/repo/scripts/pds4-server-install' || true); do
   [ "$pid" -eq "$$" ] || kill -KILL "$pid" 2>/dev/null || true
 done
 
