@@ -51,6 +51,8 @@ systemctl stop pds4-gateway.service pds4-fast@qwen3-coder-q4.service \
   pds4-fast@dolphin-cyber-8b-q4.service pds4-flash.service 2>/dev/null || true
 systemctl disable pds4-gateway.service pds4-fast@qwen3-coder-q4.service \
   pds4-fast@dolphin-cyber-8b-q4.service pds4-flash.service pds4-cache-manager.timer 2>/dev/null || true
+pkill -TERM -u pds4-fast -f '/opt/pds4/current/bin/llama-server' 2>/dev/null || true
+pkill -TERM -u pds4-flash -f '/opt/pds4/current/bin/ds4-server' 2>/dev/null || true
 
 if mountpoint -q /srv/pds4; then
   umount /srv/pds4
