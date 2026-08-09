@@ -77,6 +77,13 @@ for source_bundle in ds4.git.bundle llama.cpp.git.bundle; do
   [ -f "$sources_dir/$source_bundle" ] || { echo "missing source bundle: $source_bundle" >&2; exit 1; }
 done
 
+install -d -o root -g root -m 0750 /var/log/pds4
+install_log="/var/log/pds4/install-$version.log"
+touch "$install_log"
+chmod 0640 "$install_log"
+exec > >(tee -a "$install_log") 2>&1
+echo "[info] starting PDS4 deployment $version"
+
 install -d -o root -g root -m 0755 "$data_root" /srv/pds4
 if ! mountpoint -q /srv/pds4; then
   if find /srv/pds4 -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
