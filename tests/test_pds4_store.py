@@ -1,5 +1,6 @@
 import hashlib
 import json
+import stat
 import struct
 import tempfile
 import unittest
@@ -43,6 +44,10 @@ class PDS4StoreTests(unittest.TestCase):
         digest = self.manifest["artifacts"][0]["sha256"]
         self.assertTrue((self.root / "srv/pds4/store/sha256" / digest[:2] / digest[2:]).is_file())
         self.assertTrue((self.root / "srv/pds4/models/tiny-model/model.gguf").is_symlink())
+        model_directory = self.root / "srv/pds4/models/tiny-model"
+        blob_directory = self.root / "srv/pds4/store/sha256" / digest[:2]
+        self.assertEqual(stat.S_IMODE(model_directory.stat().st_mode), 0o750)
+        self.assertEqual(stat.S_IMODE(blob_directory.stat().st_mode), 0o750)
 
     def test_rejects_checksum_mismatch(self):
         self.manifest["artifacts"][0]["sha256"] = "0" * 64

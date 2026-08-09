@@ -39,8 +39,19 @@ def _service_readable(path: pathlib.Path) -> None:
         os.chown(path, 0, group)
 
 
+def _service_directory(path: pathlib.Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o750)
+    path.chmod(0o750)
+    if os.geteuid() == 0:
+        try:
+            group = grp.getgrnam("pds4-models").gr_gid
+        except KeyError as exc:
+            raise PDS4Error("pds4-models group is required before privileged import") from exc
+        os.chown(path, 0, group)
+
+
 def _copy_blob(source: pathlib.Path, destination: pathlib.Path, size: int, expected_digest: str) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    _service_directory(destination.parent)
     if destination.exists():
         digest, actual_size = sha256_file(destination)
         if digest == destination.parent.name + destination.name and actual_size == size:
@@ -89,6 +100,7 @@ def import_model(manifest_path: pathlib.Path, artifact_dir: pathlib.Path, paths:
     installed = dict(manifest)
     installed["status"] = "verified"
     target = paths.models / manifest["id"] / "manifest.json"
+    _service_directory(target.parent)
     atomic_write(target, canonical_json(installed), 0o440)
     _service_readable(target)
     model_directory = target.parent

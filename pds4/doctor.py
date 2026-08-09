@@ -21,5 +21,8 @@ def inspect(paths: Paths) -> dict[str, Any]:
             except Exception as exc:
                 models[directory.name] = type(exc).__name__
     checks["models"] = models
-    checks["ok"] = bool(checks["gpu_map"] and checks["release"] and models)
+    checks["ok"] = bool(
+        checks["gpu_map"] and checks["release"] and models
+        and all(status == "verified" for status in models.values())
+    )
     return checks
