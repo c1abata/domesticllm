@@ -3,3 +3,4 @@
 /models/*.gguf.*
 /config/cpu-inference.env
 /build/
+__pycache__/

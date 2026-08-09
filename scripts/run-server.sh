@@ -23,7 +23,7 @@ source "$config_file"
 : "${THREADS_BATCH:?THREADS_BATCH is required}"
 : "${PARALLEL:?PARALLEL is required}"
 : "${GPU_LAYERS:?GPU_LAYERS is required}"
-: "${API_KEY_FILE:?API_KEY_FILE is required}"
+: "${ENABLE_WEB_UI:?ENABLE_WEB_UI is required}"
 
 [[ -x "$server_bin" ]] || { printf 'llama-server not executable: %s\n' "$server_bin" >&2; exit 3; }
 [[ -r "$MODEL" ]] || { printf 'model not readable: %s\n' "$MODEL" >&2; exit 4; }
@@ -31,7 +31,11 @@ source "$config_file"
   printf 'unsupported host: %s\n' "$HOST" >&2
   exit 5
 }
-[[ -r "$API_KEY_FILE" ]] || { printf 'API key file not readable: %s\n' "$API_KEY_FILE" >&2; exit 5; }
+[[ "$ENABLE_WEB_UI" == 0 || "$ENABLE_WEB_UI" == 1 ]] || { printf 'ENABLE_WEB_UI must be 0 or 1\n' >&2; exit 5; }
+if [[ -n "${API_KEY_FILE:-}" && ! -r "$API_KEY_FILE" ]]; then
+  printf 'API key file not readable: %s\n' "$API_KEY_FILE" >&2
+  exit 5
+fi
 
 actual_sha=$(sha256sum "$MODEL" | awk '{print $1}')
 [[ "$actual_sha" == "$MODEL_SHA256" ]] || {
@@ -51,9 +55,14 @@ args=(
   --threads-batch "$THREADS_BATCH"
   --parallel "$PARALLEL"
   --n-gpu-layers "$GPU_LAYERS"
-  --api-key-file "$API_KEY_FILE"
-  --no-ui
 )
+
+if [[ -n "${API_KEY_FILE:-}" ]]; then
+  args+=(--api-key-file "$API_KEY_FILE")
+fi
+if [[ "$ENABLE_WEB_UI" == 0 ]]; then
+  args+=(--no-ui)
+fi
 
 if [[ -n "${EXTRA_ARGS:-}" ]]; then
   read -r -a extra_args <<<"$EXTRA_ARGS"

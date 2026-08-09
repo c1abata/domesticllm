@@ -14,10 +14,9 @@ The provided systemd unit is a template, not an installer. It assumes:
 - model files are readable from `/var/lib/cpu-inference/models/` and the
   template was updated so `MODEL` uses that path.
 
-The service is configured to listen on `0.0.0.0` and requires an API key. Keep
-the key file mode `0640`, owned by `root:cpu-inference`; pass it as a Bearer
-token to `/v1/*` requests. Restrict inbound TCP/8080 to the required LAN at
-the host firewall before exposing it outside the trusted network.
+The service is configured to listen on `0.0.0.0` without authentication for
+the trusted operator LAN. Do not expose TCP/8080 outside that network; apply a
+host-firewall policy before adding routes from untrusted segments.
 
 For first tuning, record prompt-token/s and generation-token/s at fixed
 prompt, context, thread and model settings. Change one parameter at a time.

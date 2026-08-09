@@ -36,18 +36,16 @@ fi
 
 install -m 0640 -o root -g cpu-inference "$config_file" /etc/cpu-inference/cpu-inference.env
 
-: "${API_KEY_FILE:?API_KEY_FILE is required}"
-if [[ ! -f "$API_KEY_FILE" ]]; then
-  umask 0137
-  openssl rand -hex 32 > "$API_KEY_FILE"
+if [[ -n "${API_KEY_FILE:-}" ]]; then
+  [[ -f "$API_KEY_FILE" ]] || { printf 'API key file missing: %s\n' "$API_KEY_FILE" >&2; exit 5; }
+  chown root:cpu-inference "$API_KEY_FILE"
+  chmod 0640 "$API_KEY_FILE"
 fi
-chown root:cpu-inference "$API_KEY_FILE"
-chmod 0640 "$API_KEY_FILE"
 
 source_dir=${LLAMA_CPP_SOURCE_DIR:-}
 [[ -n "$source_dir" ]] || {
   printf 'LLAMA_CPP_SOURCE_DIR is required; use a reviewed local llama.cpp source checkout.\n' >&2
-  exit 5
+  exit 6
 }
 CPU_TARGET="$CPU_TARGET" LLAMA_CPP_SOURCE_DIR="$source_dir" LLAMA_CPP_BUILD_DIR=/opt/cpu-inference/build/llama.cpp \
   /opt/cpu-inference/scripts/build-llama.sh
