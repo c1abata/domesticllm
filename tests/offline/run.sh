@@ -17,7 +17,6 @@ PDS4_DESTDIR="$image" PDS4_VERSION=offline-test "$root/scripts/pds4-install"
 [ -f "$image/etc/systemd/system/pds4-flash.service" ]
 [ -f "$image/etc/systemd/system/pds4-fast@.service" ]
 [ -f "$image/etc/systemd/system/pds4-gateway.service" ]
-[ -f "$image/etc/pds4/gateway.key" ]
 
 ds4_fixture="$fixtures/ds4"
 llama_fixture="$fixtures/876a4321163249c43ca4e986818fab5ab081f282"

@@ -33,7 +33,7 @@ install -d -m 0755 "$release_root" "$(at /srv/pds4/store/sha256)" "$(at /srv/pds
 trap 'rm -rf -- "$temporary"' EXIT
 install -d -m 0755 "$temporary/bin" "$temporary/lib/pds4" "$temporary/build" "$temporary/schemas" "$temporary/docs"
 for file in "$root"/pds4/*.py; do install -m 0444 "$file" "$temporary/lib/pds4/"; done
-for file in pds4 pds4-gateway pds4-tui.py pds4-offline-build pds4-soak.py pds4-hermes-configure pds4-gateway-configure; do
+for file in pds4 pds4-gateway pds4-tui.py pds4-offline-build pds4-soak.py pds4-benchmark-suite pds4-hermes-configure pds4-gateway-configure; do
   install -m 0555 "$root/scripts/$file" "$temporary/bin/${file%.py}"
 done
 for file in "$root"/build/*; do install -m 0444 "$file" "$temporary/build/"; done
@@ -109,12 +109,6 @@ install -m 0644 "$root/conf/pds4-fast.env" "$(at /etc/pds4/lanes/fast.env)"
 install -m 0644 "$root/conf/pds4-gateway.env" "$(at /etc/pds4/pds4.conf)"
 install -m 0444 "$root"/models.d/*.json "$(at /etc/pds4/models.d)/"
 install -m 0444 "$root"/web/* "$(at /usr/share/pds4/web)/"
-key="$(at /etc/pds4/gateway.key)"
-if [ ! -e "$key" ]; then
-  python3 -c 'import secrets; print(secrets.token_urlsafe(48))' >"$key"
-  chmod 0640 "$key"
-fi
-
 current="$(at /opt/pds4/current)"
 previous="$(at /opt/pds4/previous)"
 if [ -L "$current" ]; then
@@ -133,7 +127,6 @@ if [ "$prefix" = / ]; then
   chown -R pds4-flash:pds4-models /var/cache/pds4/kv/flash \
     /var/cache/pds4/kv/flash-canary /var/cache/pds4/experts/flash
   chown -R pds4-fast:pds4-models /var/cache/pds4/kv/fast /var/cache/pds4/kv/fast-canary
-  chown root:pds4-models /etc/pds4/gateway.key
   for command in pds4 pds4-gateway-configure pds4-hermes-configure pds4-offline-build; do
     ln -sfn "/opt/pds4/current/bin/$command" "/usr/local/bin/$command"
   done

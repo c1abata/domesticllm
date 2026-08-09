@@ -18,6 +18,8 @@ the inference server.
 
 ## Core commands
 
+Per l'uso quotidiano consultare [docs/PDS4_USAGE.md](docs/PDS4_USAGE.md).
+
 ```bash
 pds4 model inspect models.d/qwen3-coder-q4.json
 sudo pds4 model import MANIFEST ARTIFACT_DIRECTORY

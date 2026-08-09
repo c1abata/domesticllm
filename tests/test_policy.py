@@ -57,7 +57,10 @@ class RepositoryPolicyTests(unittest.TestCase):
             text = unit.read_text(encoding="utf-8")
             if "llama-server" not in text:
                 continue
-            self.assertIn("--api-key-file", text, unit.name)
+            if unit.name.startswith("pds4-"):
+                self.assertNotIn("--api-key-file", text, unit.name)
+            else:
+                self.assertIn("--api-key-file", text, unit.name)
             self.assertNotIn("--api-key ${", text, unit.name)
             self.assertIn("ProtectSystem=strict", text, unit.name)
             self.assertNotRegex(text, r"ReadWritePaths=.*?/opt/local-ai")

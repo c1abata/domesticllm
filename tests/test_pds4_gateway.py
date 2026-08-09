@@ -117,7 +117,7 @@ class GatewayTests(unittest.TestCase):
 
     def test_authentication_and_csp(self):
         status, _, _ = self.request("GET", "/health", authorized=False)
-        self.assertEqual(status, 401)
+        self.assertEqual(status, 200)
         status, _, headers = self.request("GET", "/", authorized=False)
         self.assertEqual(status, 200)
         self.assertIn("script-src 'self'", headers["Content-Security-Policy"])

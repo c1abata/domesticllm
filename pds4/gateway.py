@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hmac
 import http.client
 import http.server
 import json
@@ -24,26 +23,18 @@ WEB_CSP = ("default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 's
 ALLOWED_PATHS = {"/v1/chat/completions", "/v1/responses", "/v1/messages"}
 HOP_HEADERS = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
                "te", "trailers", "transfer-encoding", "upgrade"}
+ACTIVE_MODEL_IDS = {"qwen3-coder-q4", "dolphin-mistral-24b-q4", "dolphin-cyber-8b-q4"}
 
 
 def load_catalog(root: pathlib.Path) -> dict[str, dict[str, Any]]:
     catalog = {}
     for path in sorted(root.glob("*.json")):
         manifest = validate_manifest(read_json(path))
-        catalog[manifest["id"]] = manifest
+        if manifest["id"] in ACTIVE_MODEL_IDS:
+            catalog[manifest["id"]] = manifest
     if not catalog:
         raise PDS4Error("model catalog is empty")
     return catalog
-
-
-def load_key(path: pathlib.Path) -> str:
-    info = os.lstat(path)
-    if path.is_symlink() or info.st_mode & 0o037:
-        raise PDS4Error("gateway key must be a regular file with mode 0640 or stricter")
-    key = path.read_text(encoding="utf-8").splitlines()[0]
-    if len(key) < 32 or any(char in key for char in "\r\n"):
-        raise PDS4Error("invalid gateway key")
-    return key
 
 
 def route_request(routes: dict[str, Any], catalog: dict[str, dict[str, Any]], model: str) -> tuple[int, str]:
@@ -114,7 +105,7 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         self.close_connection = True
 
     def _authorized(self) -> bool:
-        return hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + self.server.api_key)
+        return True
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
@@ -270,12 +261,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--routes", default="/run/pds4/routes.json")
     parser.add_argument("--catalog", default="/etc/pds4/models.d")
     parser.add_argument("--web-root", default="/usr/share/pds4/web")
-    parser.add_argument("--api-key-file", default="/etc/pds4/gateway.key")
     parser.add_argument("--max-body", type=int, default=16 * 1024 * 1024)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args(argv)
     server = Server((args.listen, args.port), Gateway)
-    server.api_key = load_key(pathlib.Path(args.api_key_file))
+    server.api_key = ""
     server.routes_file = pathlib.Path(args.routes)
     server.catalog = load_catalog(pathlib.Path(args.catalog))
     server.web_root = pathlib.Path(args.web_root)

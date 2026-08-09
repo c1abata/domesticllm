@@ -18,7 +18,7 @@ import urllib.parse
 
 DEFAULT_URL = "http://127.0.0.1:8080/v1/chat/completions"
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-CHAT_MODELS = {"flash-q2", "qwen3-coder-q4", "mistral-small-q4", "dolphin-cyber-8b-q4"}
+CHAT_MODELS = {"qwen3-coder-q4", "dolphin-mistral-24b-q4", "dolphin-cyber-8b-q4"}
 
 
 def positive_int(value: str) -> int:

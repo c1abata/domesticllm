@@ -11,7 +11,7 @@ EnvironmentFile=/etc/pds4/gpus.conf
 EnvironmentFile=/etc/pds4/lanes/fast.env
 Environment=LD_LIBRARY_PATH=/opt/pds4/current/lib
 WorkingDirectory=/opt/pds4/current
-ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FAST_GPU} /opt/pds4/current/bin/llama-server --host 127.0.0.1 --port 8085 --api-key-file /etc/pds4/gateway.key --model ${PDS4_FAST_MODEL} --alias ${PDS4_FAST_ALIAS} --threads ${PDS4_FAST_THREADS} --ctx-size ${PDS4_FAST_CONTEXT} --n-predict ${PDS4_FAST_TOKENS} --batch-size ${PDS4_FAST_BATCH} --ubatch-size ${PDS4_FAST_UBATCH} --parallel 1 --n-gpu-layers 999 --split-mode none --main-gpu 0 --cache-type-k ${PDS4_FAST_CACHE_K} --cache-type-v ${PDS4_FAST_CACHE_V} --no-ui
+ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FAST_GPU} /opt/pds4/current/bin/llama-server --host 127.0.0.1 --port 8085 --model ${PDS4_FAST_MODEL} --alias ${PDS4_FAST_ALIAS} --threads ${PDS4_FAST_THREADS} --ctx-size ${PDS4_FAST_CONTEXT} --n-predict ${PDS4_FAST_TOKENS} --batch-size ${PDS4_FAST_BATCH} --ubatch-size ${PDS4_FAST_UBATCH} --parallel 1 --n-gpu-layers 999 --split-mode none --main-gpu 0 --cache-type-k ${PDS4_FAST_CACHE_K} --cache-type-v ${PDS4_FAST_CACHE_V} --no-ui
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=20min

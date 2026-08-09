@@ -109,17 +109,13 @@ def _promote_manifest(model_id: str, paths: Paths) -> None:
 def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] | None = None,
                 probe: Callable[[int, str, str | None], None] | None = None,
                 api_key: str | None = None) -> dict[str, Any]:
-    if not ID_PATTERN.fullmatch(model_id):
+    if model_id not in {"qwen3-coder-q4", "dolphin-mistral-24b-q4", "dolphin-cyber-8b-q4"}:
         raise PDS4Error("invalid fast model id")
     manifest = verify_installed(model_id, paths)
     if manifest["lane"] != "fast":
         raise PDS4Error("requested model does not belong to the fast lane")
     run = runner or Systemctl()
     check = probe or http_probe
-    if api_key is None:
-        key_file = paths.at("/etc/pds4/gateway.key")
-        if key_file.is_file():
-            api_key = key_file.read_text(encoding="utf-8").strip()
 
     def wait_ready(port: int, selected_model: str) -> None:
         if probe is not None:

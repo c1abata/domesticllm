@@ -10,7 +10,7 @@ Group=pds4-models
 EnvironmentFile=/etc/pds4/gpus.conf
 EnvironmentFile=/run/pds4/fast-canary.env
 Environment=LD_LIBRARY_PATH=/opt/pds4/current/lib
-ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FAST_GPU} /opt/pds4/current/bin/llama-server --host 127.0.0.1 --port 8086 --api-key-file /etc/pds4/gateway.key --model ${PDS4_FAST_MODEL} --alias ${PDS4_FAST_ALIAS} --ctx-size ${PDS4_FAST_CONTEXT} --n-predict 512 --n-gpu-layers 999 --split-mode none --main-gpu 0 --parallel 1 --no-ui
+ExecStart=/usr/bin/env CUDA_VISIBLE_DEVICES=${PDS4_FAST_GPU} /opt/pds4/current/bin/llama-server --host 127.0.0.1 --port 8086 --model ${PDS4_FAST_MODEL} --alias ${PDS4_FAST_ALIAS} --ctx-size ${PDS4_FAST_CONTEXT} --n-predict 512 --n-gpu-layers 999 --split-mode none --main-gpu 0 --parallel 1 --no-ui
 MemoryMax=32G
 SyslogIdentifier=pds4-fast-canary-%i
 NoNewPrivileges=yes

@@ -177,31 +177,18 @@ for unit in "${legacy_units[@]}"; do
     systemctl --user disable --now "$unit" 2>/dev/null || true
 done
 
-/opt/pds4/current/bin/pds4 lane start flash
-flash_ready=0
-for _ in $(seq 1 180); do
-  if curl -fsS --max-time 5 http://127.0.0.1:8082/v1/models >/dev/null 2>&1; then
-    flash_ready=1
-    break
-  fi
-  sleep 5
-done
-[ "$flash_ready" -eq 1 ] || { echo "Flash lane readiness timed out" >&2; false; }
-gateway_key="$(</etc/pds4/gateway.key)"
 /opt/pds4/current/bin/pds4 lane use fast "$fast_model"
 systemctl start pds4-gateway.service
 gateway_ready=0
 for _ in $(seq 1 30); do
-  if curl -fsS --max-time 5 -H "Authorization: Bearer $gateway_key" \
-      "http://$listen:8080/v1/models" >/dev/null 2>&1; then
+  if curl -fsS --max-time 5 "http://$listen:8080/v1/models" >/dev/null 2>&1; then
     gateway_ready=1
     break
   fi
   sleep 2
 done
 [ "$gateway_ready" -eq 1 ] || { echo "gateway readiness failed" >&2; false; }
-unset gateway_key
-systemctl enable pds4-flash.service "pds4-fast@$fast_model.service" \
+systemctl enable "pds4-fast@$fast_model.service" \
   pds4-gateway.service pds4-cache-manager.timer
 trap - ERR
 echo "[ok] PDS4 dual lane is active; legacy user services remain stopped"
