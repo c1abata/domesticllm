@@ -1,0 +1,21 @@
+[Unit]
+Description=Local CPU GGUF inference server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cpu-inference
+Group=cpu-inference
+Environment=CPU_INFERENCE_CONFIG=/etc/cpu-inference/cpu-inference.env
+ExecStart=/opt/cpu-inference/scripts/run-server.sh
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/cpu-inference
+
+[Install]
+WantedBy=multi-user.target

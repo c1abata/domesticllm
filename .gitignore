@@ -1,0 +1,5 @@
+/vendor/
+/models/*.gguf
+/models/*.gguf.*
+/config/cpu-inference.env
+/build/
