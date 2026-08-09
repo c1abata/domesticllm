@@ -116,6 +116,10 @@ def switch_fast(model_id: str, paths: Paths, runner: Callable[[str, str], None] 
         raise PDS4Error("requested model does not belong to the fast lane")
     run = runner or Systemctl()
     check = probe or http_probe
+    if api_key is None:
+        key_file = paths.at("/etc/pds4/gateway.key")
+        if key_file.is_file():
+            api_key = key_file.read_text(encoding="utf-8").strip()
 
     def wait_ready(port: int, selected_model: str) -> None:
         if probe is not None:
