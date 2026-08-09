@@ -98,6 +98,9 @@ BUILD_REPO_URL=$repo_url
 BUILD_TARGET=$target
 BUILD_CUDA_ARCH=$arch
 BUILD_SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
+BUILD_CC_VERSION=$(cc -dumpfullversion -dumpversion)
+BUILD_CUDA_VERSION=$(nvcc --version | sed -n 's/.*release \([^,]*\).*/\1/p' | tail -n 1)
+BUILD_NVCC=$(command -v nvcc)
 EOF
 (
   cd "$OUTPUT"

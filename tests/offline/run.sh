@@ -57,4 +57,9 @@ if rg -n '(curl|wget|git clone|pip install|apt-get)' "$root/systemd"/pds4-* "$ro
   echo "network-capable command found in build or startup path" >&2
   exit 1
 fi
+grep -F 'make -C "$source_dir"' "$root/build/build-ds4.sh" >/dev/null
+if grep -F 'cmake -S "$source_dir"' "$root/build/build-ds4.sh" >/dev/null; then
+  echo "DS4 offline build incorrectly uses CMake" >&2
+  exit 1
+fi
 echo "[ok] offline image install and startup policy"
