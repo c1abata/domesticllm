@@ -17,8 +17,7 @@ source "$config_file"
 
 install -d -m 0700 "$(dirname "$key_file")"
 if [[ ! -f "$key_file" ]]; then
-  umask 0177
-  openssl rand -hex 32 > "$key_file"
+  ( umask 0177; openssl rand -hex 32 > "$key_file" )
 fi
 chmod 0600 "$key_file"
 

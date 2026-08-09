@@ -27,7 +27,7 @@ if [[ "$cpu_target" != native ]]; then
 fi
 
 cmake "${cmake_args[@]}"
-cmake --build "$build_dir" --config Release --parallel
+cmake --build "$build_dir" --config Release --target llama-server --parallel
 
 if [[ ! -x "$build_dir/bin/llama-server" ]]; then
   printf 'build completed but llama-server is missing: %s\n' "$build_dir/bin/llama-server" >&2
