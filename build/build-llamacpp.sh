@@ -18,3 +18,8 @@ cmake --build "$output_dir" --parallel "${JOBS:-1}"
 # keep executables and libraries in separate, immutable directories.
 install -d "$output_dir/lib"
 find "$output_dir/bin" -maxdepth 1 -type f -name '*.so*' -exec cp -a {} "$output_dir/lib/" \;
+while IFS= read -r library; do
+  soname="$(readelf -d "$library" 2>/dev/null | sed -n 's/.*(SONAME).*\[\([^]]*\)\].*/\1/p' | head -1)"
+  [ -n "$soname" ] || continue
+  [ -e "$output_dir/lib/$soname" ] || cp -a "$library" "$output_dir/lib/$soname"
+done < <(find "$output_dir/bin" -maxdepth 1 -type f -name '*.so*' | sort)
