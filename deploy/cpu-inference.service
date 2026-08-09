@@ -15,6 +15,14 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadOnlyPaths=/opt/cpu-inference /etc/cpu-inference /srv/local-ai/models
 ReadWritePaths=/var/lib/cpu-inference
 
 [Install]

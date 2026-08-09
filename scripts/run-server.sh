@@ -20,11 +20,18 @@ source "$config_file"
 : "${PORT:?PORT is required}"
 : "${CTX_SIZE:?CTX_SIZE is required}"
 : "${THREADS:?THREADS is required}"
+: "${THREADS_BATCH:?THREADS_BATCH is required}"
 : "${PARALLEL:?PARALLEL is required}"
+: "${GPU_LAYERS:?GPU_LAYERS is required}"
+: "${API_KEY_FILE:?API_KEY_FILE is required}"
 
 [[ -x "$server_bin" ]] || { printf 'llama-server not executable: %s\n' "$server_bin" >&2; exit 3; }
 [[ -r "$MODEL" ]] || { printf 'model not readable: %s\n' "$MODEL" >&2; exit 4; }
-[[ "$HOST" == 127.0.0.1 || "$HOST" == ::1 ]] || { printf 'refusing non-loopback host: %s\n' "$HOST" >&2; exit 5; }
+[[ "$HOST" == 0.0.0.0 || "$HOST" == 127.0.0.1 || "$HOST" == ::1 ]] || {
+  printf 'unsupported host: %s\n' "$HOST" >&2
+  exit 5
+}
+[[ -r "$API_KEY_FILE" ]] || { printf 'API key file not readable: %s\n' "$API_KEY_FILE" >&2; exit 5; }
 
 actual_sha=$(sha256sum "$MODEL" | awk '{print $1}')
 [[ "$actual_sha" == "$MODEL_SHA256" ]] || {
@@ -32,8 +39,8 @@ actual_sha=$(sha256sum "$MODEL" | awk '{print $1}')
   exit 6
 }
 
-printf 'starting llama-server model=%s sha256=%s ctx=%s threads=%s parallel=%s host=%s port=%s\n' \
-  "$MODEL" "$actual_sha" "$CTX_SIZE" "$THREADS" "$PARALLEL" "$HOST" "$PORT"
+printf 'starting llama-server model=%s sha256=%s ctx=%s threads=%s/%s parallel=%s gpu-layers=%s host=%s port=%s\n' \
+  "$MODEL" "$actual_sha" "$CTX_SIZE" "$THREADS" "$THREADS_BATCH" "$PARALLEL" "$GPU_LAYERS" "$HOST" "$PORT"
 
 args=(
   --model "$MODEL"
@@ -41,7 +48,11 @@ args=(
   --port "$PORT"
   --ctx-size "$CTX_SIZE"
   --threads "$THREADS"
+  --threads-batch "$THREADS_BATCH"
   --parallel "$PARALLEL"
+  --n-gpu-layers "$GPU_LAYERS"
+  --api-key-file "$API_KEY_FILE"
+  --no-ui
 )
 
 if [[ -n "${EXTRA_ARGS:-}" ]]; then

@@ -1,6 +1,6 @@
 # CPU Inference
 
-Small, local-only OpenAI-compatible inference service for an AMD CPU, 128 GB
+Small, CPU-only OpenAI-compatible inference service for an AMD CPU, 128 GB
 RAM and GGUF models. The sole inference runtime is `llama-server` from a
 locally built `llama.cpp`; it does not install Python, PyTorch, Oobabooga,
 Ollama or LiteLLM.
@@ -39,8 +39,9 @@ environment, then start the server on loopback.
 
 The default endpoint is `http://127.0.0.1:8080/v1`. `llama-server` supplies
 the OpenAI-compatible API directly, so an extra proxy is unnecessary for one
-model. Place a reverse proxy or authenticated gateway in front only after an
-explicit network-access decision.
+model. The supplied production configuration deliberately listens on `0.0.0.0`
+and requires a key through `--api-key-file`; it does not expose an unauthenticated
+endpoint.
 
 ## CPU guidance
 
@@ -59,7 +60,22 @@ With the server running:
 
 ```bash
 curl --fail --silent --show-error http://127.0.0.1:8080/health
-curl --fail --silent --show-error http://127.0.0.1:8080/v1/models
+curl --fail --silent --show-error -H "Authorization: Bearer YOUR_KEY" http://127.0.0.1:8080/v1/models
 ```
 
 No service is enabled or started by this repository.
+
+## Deployment to `llmm`
+
+`config/llmm.env` pins the existing Qwen3-Coder 30B GGUF on `10.25.13.22`.
+The root installer builds a CPU-native binary with OpenBLAS, writes the
+systemd service and creates the API key file if it does not exist:
+
+```bash
+sudo CPU_INFERENCE_CONFIG=/opt/cpu-inference/config/llmm.env \
+  LLAMA_CPP_SOURCE_DIR=/srv/local-ai/build/llama.cpp-876a4321163249c43ca4e986818fab5ab081f282 \
+  /opt/cpu-inference/scripts/install-system.sh
+```
+
+Retrieve the generated key only from the server's trusted console, then use it
+as `Authorization: Bearer KEY`. The installer intentionally does not print it.
