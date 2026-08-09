@@ -5,16 +5,20 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=cpu-inference
-Group=cpu-inference
-Environment=CPU_INFERENCE_CONFIG=/etc/cpu-inference/cpu-inference.env
-ExecStart=/opt/cpu-inference/scripts/run-server.sh
+User=ale
+Group=ale
+WorkingDirectory=/home/ale/cpu-inference
+Environment=CPU_INFERENCE_CONFIG=/home/ale/cpu-inference/config/llmm.env
+ExecStart=/home/ale/cpu-inference/scripts/run-server.sh
 Restart=on-failure
 RestartSec=5
+TimeoutStartSec=20min
+TimeoutStopSec=5min
+MemoryMax=110G
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
-ProtectHome=yes
+ProtectHome=read-only
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
@@ -22,8 +26,9 @@ RestrictSUIDSGID=yes
 RestrictNamespaces=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=
-ReadOnlyPaths=/opt/cpu-inference /etc/cpu-inference /srv/local-ai/models
+ReadOnlyPaths=/home/ale/cpu-inference /srv/local-ai/models
 ReadWritePaths=/var/lib/cpu-inference
+StateDirectory=cpu-inference
 
 [Install]
 WantedBy=multi-user.target

@@ -68,13 +68,12 @@ No service is enabled or started by this repository.
 ## Deployment to `llmm`
 
 `config/llmm.env` pins the existing Qwen3-Coder 30B GGUF on `10.25.13.22`.
-The root installer builds a CPU-native binary with OpenBLAS, writes the
-systemd service and creates the API key file if it does not exist:
+The `llmm` installer builds a CPU-native binary with OpenBLAS, writes the
+systemd service, disables the active PDS4 lanes and creates the API key file
+if it does not exist:
 
 ```bash
-sudo CPU_INFERENCE_CONFIG=/opt/cpu-inference/config/llmm.env \
-  LLAMA_CPP_SOURCE_DIR=/srv/local-ai/build/llama.cpp-876a4321163249c43ca4e986818fab5ab081f282 \
-  /opt/cpu-inference/scripts/install-system.sh
+scripts/install-llmm.sh
 ```
 
 Retrieve the generated key only from the server's trusted console, then use it

@@ -19,6 +19,7 @@ cmake_args=(
   -DGGML_NATIVE="$([[ "$cpu_target" == native ]] && printf ON || printf OFF)"
   -DGGML_BLAS=ON
   -DGGML_BLAS_VENDOR=OpenBLAS
+  -DGGML_CUDA=OFF
 )
 
 if [[ "$cpu_target" != native ]]; then
