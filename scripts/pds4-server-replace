@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 027
+
+confirm=""
+legacy_user="ale"
+repo=""
+installer_args=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --purge-confirm) confirm="${2:?missing purge confirmation}"; shift 2 ;;
+    --legacy-user) legacy_user="${2:?missing legacy user}"; installer_args+=("$1" "$2"); shift 2 ;;
+    --repo) repo="${2:?missing repository}"; installer_args+=("$1" "$2"); shift 2 ;;
+    --) shift; installer_args+=("$@"); break ;;
+    *) installer_args+=("$1"); shift ;;
+  esac
+done
+
+[ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
+[ "$confirm" = "PDS4-LEGACY-REPLACE" ] || {
+  echo "refusing destructive replacement: pass --purge-confirm PDS4-LEGACY-REPLACE" >&2
+  exit 2
+}
+[ -n "$repo" ] && [ -x "$repo/scripts/pds4-server-install" ] || {
+  echo "--repo must point to the staged PDS4 repository" >&2
+  exit 2
+}
+id "$legacy_user" >/dev/null 2>&1 || { echo "unknown legacy user: $legacy_user" >&2; exit 1; }
+
+echo "[purge] stopping any in-flight PDS4 deployment"
+for pid in $(pgrep -f "$repo/scripts/pds4-server-install" || true); do
+  [ "$pid" -eq "$$" ] || kill -TERM "$pid" 2>/dev/null || true
+done
+sleep 2
+for pid in $(pgrep -f "$repo/scripts/pds4-server-install" || true); do
+  [ "$pid" -eq "$$" ] || kill -KILL "$pid" 2>/dev/null || true
+done
+
+legacy_uid="$(id -u "$legacy_user")"
+legacy_units=(domesticllm-ds4.service domesticllm-fast.service domesticllm-gateway.service)
+for unit in "${legacy_units[@]}"; do
+  sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+    systemctl --user disable --now "$unit" 2>/dev/null || true
+done
+pkill -TERM -u "$legacy_user" -f '/opt/local-ai/(current|llama-current)/bin/(ds4-server|llama-server)' 2>/dev/null || true
+
+echo "[purge] stopping PDS4 units"
+systemctl stop pds4-gateway.service pds4-fast@qwen3-coder-q4.service \
+  pds4-fast@dolphin-cyber-8b-q4.service pds4-flash.service 2>/dev/null || true
+systemctl disable pds4-gateway.service pds4-fast@qwen3-coder-q4.service \
+  pds4-fast@dolphin-cyber-8b-q4.service pds4-flash.service pds4-cache-manager.timer 2>/dev/null || true
+
+if mountpoint -q /srv/pds4; then
+  umount /srv/pds4
+fi
+sed -i '\|/srv/local-ai/pds4 /srv/pds4 none bind,nofail 0 0|d' /etc/fstab
+
+echo "[purge] removing previous exact runtime paths"
+rm -rf -- /opt/pds4 /etc/pds4 /var/lib/pds4 /var/cache/pds4 /var/log/pds4
+rm -f -- /etc/systemd/system/pds4-*.service /etc/systemd/system/pds4-*.timer
+rm -rf -- /etc/systemd/system/pds4-flash.service.d \
+  /etc/systemd/system/pds4-flash-canary.service.d \
+  /etc/systemd/system/pds4-fast@.service.d \
+  /etc/systemd/system/pds4-fast-canary@.service.d \
+  /etc/systemd/system/pds4-gateway.service.d
+rm -rf -- /srv/local-ai/pds4
+rm -rf -- /opt/local-ai/releases /opt/local-ai/llama-releases
+rm -f -- /opt/local-ai/current /opt/local-ai/previous /opt/local-ai/llama-current
+rm -rf -- "/home/$legacy_user/.config/domesticllm" "/home/$legacy_user/domesticllm/.runtime"
+rm -f -- "/home/$legacy_user/.config/systemd/user/domesticllm-ds4.service" \
+  "/home/$legacy_user/.config/systemd/user/domesticllm-fast.service" \
+  "/home/$legacy_user/.config/systemd/user/domesticllm-gateway.service"
+systemctl daemon-reload
+sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
+  systemctl --user daemon-reload || true
+
+echo "[install] installing one PDS4 runtime and preserving verified GGUF inputs"
+exec "$repo/scripts/pds4-server-install" "${installer_args[@]}" \
+  --legacy-user "$legacy_user" --activate
