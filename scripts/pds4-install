@@ -127,7 +127,7 @@ if [ "$prefix" = / ]; then
   chown -R pds4-flash:pds4-models /var/cache/pds4/kv/flash \
     /var/cache/pds4/kv/flash-canary /var/cache/pds4/experts/flash
   chown -R pds4-fast:pds4-models /var/cache/pds4/kv/fast /var/cache/pds4/kv/fast-canary
-  for command in pds4 pds4-gateway-configure pds4-hermes-configure pds4-offline-build; do
+  for command in pds4 pds4-tui pds4-gateway-configure pds4-hermes-configure pds4-offline-build pds4-benchmark-suite; do
     ln -sfn "/opt/pds4/current/bin/$command" "/usr/local/bin/$command"
   done
 fi

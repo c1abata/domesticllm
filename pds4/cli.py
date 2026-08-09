@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 import subprocess
@@ -149,7 +150,15 @@ def parser() -> argparse.ArgumentParser:
     prune_cache = cache_commands.add_parser("prune")
     prune_cache.add_argument("--max-size", required=True)
     tui = commands.add_parser("tui")
-    tui.add_argument("arguments", nargs=argparse.REMAINDER)
+    tui.add_argument("prompt", nargs="*")
+    tui.add_argument("--model", default=None)
+    tui.add_argument("--url", default=None)
+    tui.add_argument("--chat", action="store_true")
+    tui.add_argument("--max-tokens", type=int, default=None)
+    tui.add_argument("--temperature", type=float, default=None)
+    tui.add_argument("--reasoning", choices=("direct", "high", "max"), default=None)
+    tui.add_argument("--context", type=int, default=None)
+    tui.add_argument("--show-reasoning", action="store_true")
     commands.add_parser("serve")
     benchmark = commands.add_parser("benchmark")
     benchmark_commands = benchmark.add_subparsers(dest="benchmark_command", required=True)
@@ -240,7 +249,17 @@ def main(argv: list[str] | None = None) -> int:
             if not default_tui.is_file():
                 default_tui = pathlib.Path(__file__).resolve().parents[1] / "scripts/pds4-tui.py"
             tui_path = pathlib.Path(os.environ.get("PDS4_TUI_PATH", default_tui))
-            return subprocess.run([sys.executable, str(tui_path), *args.arguments], check=False).returncode
+            forwarded = []
+            for name in ("model", "url", "max_tokens", "temperature", "reasoning", "context"):
+                value = getattr(args, name)
+                if value is not None:
+                    forwarded.extend([f"--{name.replace('_', '-')}", str(value)])
+            if args.chat:
+                forwarded.append("--chat")
+            if args.show_reasoning:
+                forwarded.append("--show-reasoning")
+            forwarded.extend(args.prompt)
+            return subprocess.run([sys.executable, str(tui_path), *forwarded], check=False).returncode
         if args.command == "serve":
             from .gateway import main as gateway_main
             return gateway_main([])
