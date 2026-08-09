@@ -173,7 +173,7 @@ trap restore_legacy ERR
 for unit in "${legacy_units[@]}"; do
   sudo -u "$legacy_user" XDG_RUNTIME_DIR="/run/user/$legacy_uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$legacy_uid/bus" \
-    systemctl --user disable --now "$unit"
+    systemctl --user disable --now "$unit" 2>/dev/null || true
 done
 
 /opt/pds4/current/bin/pds4 lane start flash
