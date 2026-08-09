@@ -70,6 +70,8 @@ rm -rf -- /etc/systemd/system/pds4-flash.service.d \
 rm -rf -- /srv/local-ai/pds4
 rm -rf -- /opt/local-ai/releases /opt/local-ai/llama-releases
 rm -f -- /opt/local-ai/current /opt/local-ai/previous /opt/local-ai/llama-current
+rm -rf -- /opt/local-ai/bin /opt/local-ai/lib /opt/local-ai/steering \
+  /opt/local-ai/tools /opt/local-ai/src /opt/local-ai/repos /opt/local-ai/libexec
 rm -rf -- "/home/$legacy_user/.config/domesticllm" "/home/$legacy_user/domesticllm/.runtime"
 rm -f -- "/home/$legacy_user/.config/systemd/user/domesticllm-ds4.service" \
   "/home/$legacy_user/.config/systemd/user/domesticllm-fast.service" \
