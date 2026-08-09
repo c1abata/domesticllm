@@ -14,6 +14,7 @@ listen=""
 allow_cidr=""
 version=""
 fast_model=qwen3-coder-q4
+legacy_user_arg=""
 activate=0
 
 usage() {
@@ -41,6 +42,7 @@ while [ "$#" -gt 0 ]; do
     --allow-cidr) allow_cidr="${2:?missing allowed CIDR}"; shift 2 ;;
     --version) version="${2:?missing version}"; shift 2 ;;
     --fast-model) fast_model="${2:?missing fast model}"; shift 2 ;;
+    --legacy-user) legacy_user_arg="${2:?missing legacy service user}"; shift 2 ;;
     --activate) activate=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -128,7 +130,7 @@ if [ "$activate" -eq 0 ]; then
   exit 0
 fi
 
-legacy_user="${SUDO_USER:-}"
+legacy_user="${legacy_user_arg:-${SUDO_USER:-}}"
 legacy_uid=""
 legacy_units=(domesticllm-gateway.service domesticllm-fast.service domesticllm-ds4.service)
 legacy_active=()
