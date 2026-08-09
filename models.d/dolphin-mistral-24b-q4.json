@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "dolphin-mistral-24b-q4",
+  "family": "mistral-small-24b",
+  "purpose": "restricted-general",
+  "source": {"repository": "bartowski/cognitivecomputations_Dolphin3.0-Mistral-24B-GGUF", "revision": "e06c915c2847a92c183407f4b5b9efb51af882a1"},
+  "artifacts": [{"file": "cognitivecomputations_Dolphin3.0-Mistral-24B-Q4_K_M.gguf", "role": "weights", "sha256": "6f193bbf98628140194df257c7466e2c6f80a7ef70a6ebae26c53b2f2ef21994", "size": 14333925664}],
+  "quantization": "Q4_K_M",
+  "runtime": {"engine": "llama.cpp", "commit": "876a4321163249c43ca4e986818fab5ab081f282"},
+  "lane": "fast",
+  "context_tested": 16384,
+  "tools_allowed": true,
+  "license": {"spdx": "NOASSERTION", "redistribution": "unknown"},
+  "offline_ready": true,
+  "status": "quarantine"
+}

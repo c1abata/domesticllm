@@ -5,6 +5,10 @@ umask 022
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 prefix="${PDS4_DESTDIR:-}"
 version="${PDS4_VERSION:-0.1.0}"
+ds4_runtime="${PDS4_DS4_RUNTIME:-}"
+llama_runtime="${PDS4_LLAMA_RUNTIME:-}"
+ds4_commit=80df56af4070d0fc62f6f9682b1854f8e5be8b00
+llama_commit=876a4321163249c43ca4e986818fab5ab081f282
 case "$version" in *[!A-Za-z0-9._-]*|"") echo "invalid PDS4 version" >&2; exit 2 ;; esac
 if [ -z "$prefix" ]; then
   [ "$(id -u)" -eq 0 ] || { echo "run as root or set PDS4_DESTDIR for an image build" >&2; exit 1; }
@@ -21,7 +25,9 @@ temporary="$release_root/.${version}.install.$$"
 install -d -m 0755 "$release_root" "$(at /srv/pds4/store/sha256)" "$(at /srv/pds4/models)" \
   "$(at /srv/pds4/sources)" "$(at /srv/pds4/toolchains)" "$(at /srv/pds4/licenses)" \
   "$(at /srv/pds4/quarantine)" "$(at /var/lib/pds4/lanes)" "$(at /var/lib/pds4/sessions)" \
-  "$(at /var/cache/pds4/kv/flash)" "$(at /var/cache/pds4/kv/fast)" "$(at /var/cache/pds4/experts/flash)" \
+  "$(at /var/cache/pds4/kv/flash)" "$(at /var/cache/pds4/kv/flash-canary)" \
+  "$(at /var/cache/pds4/kv/fast)" "$(at /var/cache/pds4/kv/fast-canary)" \
+  "$(at /var/cache/pds4/experts/flash)" "$(at /var/log/pds4)" \
   "$(at /etc/pds4/lanes)" "$(at /etc/pds4/models.d)" "$(at /usr/share/pds4/web)" \
   "$(at /etc/systemd/system)"
 trap 'rm -rf -- "$temporary"' EXIT
@@ -35,6 +41,62 @@ chmod 0555 "$temporary/build"/*.sh
 install -m 0444 "$root"/schemas/*.json "$temporary/schemas/"
 install -m 0444 "$root/docs/PDS4_"*.md "$temporary/docs/"
 install -m 0444 "$root/LICENSE" "$root/NOTICE.md" "$root/vendor.lock.json" "$temporary/"
+
+copy_ds4_runtime() {
+  local source build_commit binary
+  source="$(readlink -f "$ds4_runtime")"
+  [ -d "$source/bin" ] && [ -f "$source/build.env" ] && [ -f "$source/manifest.sha256" ] || {
+    echo "invalid DS4 runtime: $ds4_runtime" >&2
+    exit 1
+  }
+  build_commit="$(sed -n 's/^BUILD_COMMIT=//p' "$source/build.env")"
+  [ "$build_commit" = "$ds4_commit" ] || {
+    echo "DS4 runtime commit $build_commit does not match pin $ds4_commit" >&2
+    exit 1
+  }
+  (cd "$source" && sha256sum -c manifest.sha256 >/dev/null)
+  for binary in ds4 ds4-agent ds4-bench ds4-eval ds4-server; do
+    [ -f "$source/bin/$binary" ] && [ -x "$source/bin/$binary" ] || {
+      echo "DS4 runtime is missing $binary" >&2
+      exit 1
+    }
+    install -m 0555 "$source/bin/$binary" "$temporary/bin/$binary"
+  done
+  install -m 0444 "$source/build.env" "$temporary/ds4-build.env"
+  install -m 0444 "$source/LICENSE" "$temporary/DS4-LICENSE"
+}
+
+copy_llama_runtime() {
+  local source entry resolved
+  source="$(readlink -f "$llama_runtime")"
+  [ -d "$source/lib" ] && [ -f "$source/bin/llama-server" ] && [ -x "$source/bin/llama-server" ] || {
+    echo "invalid llama.cpp runtime: $llama_runtime" >&2
+    exit 1
+  }
+  [ "$(basename "$source")" = "$llama_commit" ] || {
+    echo "llama.cpp runtime directory does not match pin $llama_commit" >&2
+    exit 1
+  }
+  install -m 0555 "$source/bin/llama-server" "$temporary/bin/llama-server"
+  # Store aliases as regular files. Offline bundles reject symlinks by design.
+  for entry in "$source"/lib/*.so*; do
+    [ -e "$entry" ] || continue
+    resolved="$(readlink -f "$entry")"
+    [ -f "$resolved" ] || { echo "unsafe llama.cpp library: $entry" >&2; exit 1; }
+    install -m 0444 "$resolved" "$temporary/lib/$(basename "$entry")"
+  done
+  printf 'BUILD_COMMIT=%s\nBUILD_TARGET=cuda\nBUILD_CUDA_ARCH=sm_86\n' "$llama_commit" \
+    >"$temporary/llama-build.env"
+  chmod 0444 "$temporary/llama-build.env"
+}
+
+[ -z "$ds4_runtime" ] || copy_ds4_runtime
+[ -z "$llama_runtime" ] || copy_llama_runtime
+(
+  cd "$temporary"
+  find bin lib -type f -print | LC_ALL=C sort | xargs sha256sum
+) >"$temporary/runtime.sha256"
+chmod 0444 "$temporary/runtime.sha256"
 chmod -R a-w "$temporary"
 mv "$temporary" "$release"
 trap - EXIT
@@ -68,11 +130,18 @@ if [ "$prefix" = / ]; then
       --shell /usr/sbin/nologin "$account"
   done
   chown -R root:pds4-models /srv/pds4 /var/lib/pds4 /etc/pds4
-  chown -R pds4-flash:pds4-models /var/cache/pds4/kv/flash /var/cache/pds4/experts/flash
-  chown -R pds4-fast:pds4-models /var/cache/pds4/kv/fast
+  chown -R pds4-flash:pds4-models /var/cache/pds4/kv/flash \
+    /var/cache/pds4/kv/flash-canary /var/cache/pds4/experts/flash
+  chown -R pds4-fast:pds4-models /var/cache/pds4/kv/fast /var/cache/pds4/kv/fast-canary
   chown root:pds4-models /etc/pds4/gateway.key
+  for command in pds4 pds4-gateway-configure pds4-hermes-configure pds4-offline-build; do
+    ln -sfn "/opt/pds4/current/bin/$command" "/usr/local/bin/$command"
+  done
 fi
 
 echo "[ok] installed immutable PDS4 release $version"
-echo "[next] provision pds4 service users, assign GPU UUIDs, then run systemctl daemon-reload"
+if [ -z "$ds4_runtime$llama_runtime" ]; then
+  echo "[warning] control plane installed without inference runtimes"
+fi
+echo "[next] assign GPU UUIDs, import verified models, then run systemctl daemon-reload"
 echo "[note] no service was enabled or started"
