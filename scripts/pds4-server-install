@@ -123,6 +123,7 @@ done
 /opt/pds4/current/bin/pds4 gpu probe --flash "$flash_gpu" --fast "$fast_gpu"
 /opt/pds4/current/bin/pds4-gateway-configure --listen "$listen" --allow-cidr "$allow_cidr"
 systemctl daemon-reload
+install -d -o root -g pds4-models -m 0755 /run/pds4
 /opt/pds4/current/bin/pds4 doctor
 
 if [ "$activate" -eq 0 ]; then
