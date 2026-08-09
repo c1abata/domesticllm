@@ -11,10 +11,10 @@ SSH tunnel                         -> server 127.0.0.1:8080
 PDS4 gateway and runtimes          -> no WAN egress
 ```
 
-Install the reviewed, pinned Hermes release from the offline bundle, then run
-`pds4-hermes-configure --ssh-target USER@HOST`. Review the generated files
-before enabling the user tunnel. Copy the gateway key and Telegram token to
-`~/.hermes/.env` with mode `0600`; require a numeric `TELEGRAM_ALLOWED_USERS`.
+Install the reviewed, pinned Hermes release from the offline bundle. The PDS4
+LAN gateway is intentionally unauthenticated, so no gateway key is needed.
+Telegram remains optional and its token must stay in WSL `~/.hermes/.env` with
+mode `0600`; require a numeric `TELEGRAM_ALLOWED_USERS`.
 
 When WAN is unavailable, only the Telegram adapter is offline. CLI, TUI, Web,
 LAN API, SSH and local Hermes continue to work. WireGuard, Headscale and

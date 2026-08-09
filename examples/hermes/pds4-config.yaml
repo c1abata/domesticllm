@@ -2,22 +2,19 @@
 providers:
   pds4:
     api: http://127.0.0.1:18080/v1
-    key_env: PDS4_API_KEY
     transport: chat_completions
     models:
-      flash-q2:
-        context_length: 32768
       qwen3-coder-q4:
         context_length: 16384
-      mistral-small-q4:
+      dolphin-mistral-24b-q4:
         context_length: 16384
       dolphin-cyber-8b-q4:
         context_length: 8192
 
 model:
   provider: custom:pds4
-  default: flash-q2
-  context_length: 32768
+  default: dolphin-cyber-8b-q4
+  context_length: 8192
 
 terminal:
   backend: local
