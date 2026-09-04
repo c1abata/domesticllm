@@ -1,0 +1,20 @@
+[Unit]
+Description=DomesticLLM unified LAN inference gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ale/cpu-inference
+ExecStart=/usr/bin/python3 /home/ale/cpu-inference/scripts/lan-gateway.py --config /home/ale/cpu-inference/config/lan-models.json --state /home/ale/.local/state/cpu-inference/lan-gateway.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/home/ale/cpu-inference /srv/local-ai/models /srv/local-ai/build /home/ale/pds4-deploy
+ReadWritePaths=/home/ale/.local/state/cpu-inference
+
+[Install]
+WantedBy=default.target

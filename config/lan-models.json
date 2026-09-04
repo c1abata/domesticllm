@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "gateway": {"host": "0.0.0.0", "port": 8080, "cors": true},
+  "models": {
+    "dolphin-8b-q4": {
+      "engine": "llama", "admitted": true,
+      "model": "/srv/local-ai/models/Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf",
+      "sha256": "73da18db1557e19e8ec2d6c1e8ef08e182c735d72f3bd526f6940f4fec96c1cb",
+      "port": 18080,
+      "args": ["--ctx-size", "16384", "--threads", "16", "--threads-batch", "32", "--parallel", "2", "--cont-batching", "--n-gpu-layers", "999", "--split-mode", "none", "--main-gpu", "0", "--flash-attn", "auto", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--metrics", "--slots", "--no-ui"]
+    },
+    "qwen3-coder-30b-ud-q4": {
+      "engine": "llama", "admitted": true,
+      "model": "/srv/local-ai/models/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf",
+      "sha256": "2841aa314d916434860cfb8990347528dcdfe5c350dbcb9d1461dbee88ff2533",
+      "port": 18081,
+      "args": ["--ctx-size", "8192", "--threads", "16", "--threads-batch", "32", "--parallel", "1", "--cont-batching", "--n-gpu-layers", "999", "--split-mode", "layer", "--tensor-split", "1,1", "--main-gpu", "0", "--flash-attn", "auto", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--metrics", "--slots", "--no-ui"]
+    },
+    "deepseek-v4-flash-iq2": {
+      "engine": "ds4", "admitted": false,
+      "reason": "Measured on 2x RTX A4500: native DS4 cannot place the remaining balanced stage inside the effective 14.16 GiB per-GPU budget, even with SSD streaming.",
+      "model": "/srv/local-ai/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf",
+      "sha256": "a02f4e9ed0f7cd4d51b79ccb21e72a9fd17b5104a14361c9a333798d4e6ea5c8",
+      "port": 18082,
+      "args": ["--cuda", "--gpu-devices", "0,1", "--gpu-vram", "17,17", "--cuda-tensor-parallel", "--ctx", "8192", "--tokens", "2048", "--threads", "16", "--power", "100", "--ssd-streaming", "--ssd-streaming-cold", "--ssd-streaming-cache-experts", "8GB", "--warm-weights", "--prefill-chunk", "2048", "--kv-disk-dir", "/home/ale/.local/state/cpu-inference/kv/deepseek-v4-flash-iq2", "--kv-disk-space-mb", "8192"]
+    }
+  }
+}
