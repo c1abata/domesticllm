@@ -205,6 +205,9 @@ def serve(config: Path, state: Path) -> None:
             ui_request = self.path == "/ui/chat"
             if not ui_request and self.path not in {"/v1/chat/completions", "/v1/completions", "/v1/responses"}: self.reply(404, {"error": {"message": "not found"}}); return
             if not ui_request and not self.api_authorized(): self.reply(401, {"error": {"message": "API authentication required"}}); return
+            if not gateway.lock.acquire(blocking=False):
+                self.reply(429, {"error": {"message": "model is busy; retry after the active request completes", "type": "model_busy"}})
+                return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= 16 * 1024 * 1024: raise ValueError("invalid request size")
@@ -215,6 +218,7 @@ def serve(config: Path, state: Path) -> None:
             except PermissionError as exc: self.reply(409, {"error": {"message": str(exc), "type": "model_not_admitted"}})
             except (ValueError, json.JSONDecodeError) as exc: self.reply(400, {"error": {"message": str(exc), "type": "invalid_request_error"}})
             except (OSError, RuntimeError) as exc: self.reply(503, {"error": {"message": str(exc), "type": "service_unavailable"}})
+            finally: gateway.lock.release()
     try: ThreadingHTTPServer((host, port), Handler).serve_forever()
     finally: gateway.stop()
 

@@ -31,6 +31,11 @@ Authenticated API clients use `/v1/models` and `/v1/host/status`; standard
 OpenAI chat/completions/responses requests select the profile in `model`.
 Streaming responses are relayed.
 
+The gateway accepts one inference transaction at a time. This includes model
+activation and the complete response, so a second caller cannot stop or replace
+a backend while an existing generation is running. A concurrent request receives
+HTTP `429` with `model_busy` and can retry after the active request completes.
+
 ## Current remote deployment
 
 The current stable deployment runs on `10.25.13.22` as the user service
