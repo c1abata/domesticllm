@@ -11,6 +11,30 @@ CLI / TUI / Web / Agent -> authenticated PDS4 gateway
                               `-> Fast: llama.cpp, GPU UUID B, 127.0.0.1:8085
 ```
 
+## Current stable LAN console
+
+The primary operator surface on the current two-A4500 host is the unified LAN
+console described in [docs/LAN_GATEWAY.md](docs/LAN_GATEWAY.md). It is a small,
+separate user service: one backend owns GPU memory at a time, while the browser
+selects the admitted local profile and its supported generation/runtime settings.
+
+- Web UI: `http://SERVER:8080/` — no login, intended only for the trusted LAN.
+- OpenAI-compatible API: `http://SERVER:8080/v1/*` — always requires a Bearer
+  token stored locally with mode `0600`.
+- Public UI status: `/ui/status`; authenticated automation status:
+  `/v1/host/status`. Both report the active session and, after a completed
+  non-streaming turn, prompt/output token counts plus measured prefill and
+  generation token/s.
+- The currently admitted profiles are the 4-bit Dolphin 8B and Qwen Coder 30B
+  GGUFs. Native DeepSeek V4 Flash IQ2 stays catalogued but unavailable on the
+  two 19 GiB A4500 GPUs; the gateway returns a clear `409` instead of attempting
+  an unsafe load.
+
+On the configured remote host (`10.25.13.22`), the service is
+`cpu-inference-lan-gateway.service`, binds only the gateway to `0.0.0.0:8080`,
+and keeps inference backends on loopback. The independent video services remain
+installed but disabled; they do not share the inference process or GPU session.
+
 No build or service startup downloads data. Model weights are untrusted normal
 files in a SHA-256 content-addressed store and never enter Git. Runtime services
 bind to loopback and deny egress. Telegram is an optional Hermes adapter outside

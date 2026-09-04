@@ -30,3 +30,26 @@ completed non-streaming response.
 Authenticated API clients use `/v1/models` and `/v1/host/status`; standard
 OpenAI chat/completions/responses requests select the profile in `model`.
 Streaming responses are relayed.
+
+## Current remote deployment
+
+The current stable deployment runs on `10.25.13.22` as the user service
+`cpu-inference-lan-gateway.service`. Its source checkout is
+`/home/ale/cpu-inference`; the UI asset is `web-lan/index.html`; persistent
+gateway state and the API token stay in `/home/ale/.local/state/cpu-inference`.
+The token has mode `0600` and is displayed locally only by
+`scripts/show-api-token.sh`.
+
+The gateway is the primary LAN listener and binds `0.0.0.0:8080`; each actual
+model process remains on `127.0.0.1`. Verify the live service without exposing
+the token:
+
+```bash
+systemctl --user is-active cpu-inference-lan-gateway.service
+curl -fsS http://127.0.0.1:8080/ui/status
+curl -o /dev/null -s -w '%{http_code}\n' http://127.0.0.1:8080/v1/models
+```
+
+The last command must return `401` without the API token. The separate video
+workers remain installed but disabled, so they cannot contend with this primary
+inference session.
