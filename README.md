@@ -60,3 +60,13 @@ curl -o /dev/null -s -w '%{http_code}\n' http://10.25.13.22:8080/v1/models
 ```
 
 Il secondo comando restituisce `401` senza token: è il comportamento atteso.
+
+## Documentazione
+
+- [Architettura](docs/ARCHITECTURE.md): componenti, rete, ciclo di una richiesta
+  e confini del servizio.
+- [Gateway LAN](docs/LAN_GATEWAY.md): contratto HTTP, autenticazione e stato.
+- [Modelli](docs/MODELS.md): catalogo effettivo e limite DeepSeek.
+- [Operazioni](docs/OPERATIONS.md): controllo, log, riavvio e diagnosi.
+- [Audio opzionale](docs/QWEN_ASR.md): componente separato, non incluso nel
+  servizio principale.

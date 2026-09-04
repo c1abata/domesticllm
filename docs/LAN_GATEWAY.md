@@ -1,5 +1,8 @@
 # Unified LAN inference gateway
 
+See also [Architecture](ARCHITECTURE.md), [Models](MODELS.md), and
+[Operations](OPERATIONS.md).
+
 The gateway is the only LAN listener: `http://0.0.0.0:8080`. The web interface
 at `/` has no authentication by operator request. All `/v1/*` API endpoints
 require `Authorization: Bearer <token>`; retrieve that token only on the host

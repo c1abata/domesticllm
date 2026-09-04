@@ -17,10 +17,11 @@ data, host inventories, or private addresses in the report.
 
 ## Deployment boundary
 
-- Native DS4 must remain on loopback.
-- The LAN gateway requires bearer authentication and an explicit CIDR allowlist.
-- Direct LAN HTTP is suitable only for a trusted network. Prefer TLS or an SSH
-  tunnel where interception is possible.
+- Native model backends must remain on loopback.
+- The primary web UI is intentionally unauthenticated for a trusted LAN; every
+  `/v1/*` API endpoint requires a Bearer token kept in a mode-0600 local file.
+- Direct LAN HTTP is suitable only for a trusted network. Use TLS, a VPN or an
+  SSH tunnel where interception is possible.
 - Model-generated code and tool calls are untrusted input. Run them with least
   privilege and require human approval for mutations.
 - Never publish GGUF files, API keys, runtime environment files, soak evidence,

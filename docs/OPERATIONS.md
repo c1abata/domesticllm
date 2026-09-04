@@ -1,36 +1,44 @@
-# Operations
+# Operazioni del servizio principale
+
+Il servizio remoto è `cpu-inference-lan-gateway.service` e gira come user
+service di `ale` sul server `10.25.13.22`.
+
+## Stato e log
 
 ```bash
-sudo systemctl restart local-ai-cpu
-sudo systemctl status local-ai-cpu --no-pager
-journalctl -u local-ai-cpu -f
+systemctl --user status cpu-inference-lan-gateway.service
+journalctl --user -u cpu-inference-lan-gateway.service -f
+curl -fsS http://127.0.0.1:8080/ui/status
 ```
 
-Health:
-```bash
-bash scripts/80_health_report.sh
-```
+Lo stato mostra modello, runtime, durata della sessione, numero di richieste e
+le metriche dell’ultima risposta non streaming.
 
-LAN:
-```bash
-sudo bash scripts/41_net_check_1gbe.sh enp3s0
-sudo ufw status verbose
-```
-
-Cache:
-```bash
-bash scripts/60_slot_save.sh 0 work.bin
-bash scripts/61_slot_restore.sh 0 work.bin
-bash scripts/62_slot_erase.sh 0
-```
-
-
-DS4 Intel profile:
+## Riavvio
 
 ```bash
-sudo systemctl restart local-ai-ds4-intel
-sudo systemctl status local-ai-ds4-intel --no-pager
-journalctl -u local-ai-ds4-intel -f
-curl http://127.0.0.1:8081/health
-ENV_FILE=/etc/local-ai-ds4-intel.env SERVICE=local-ai-ds4-intel bash scripts/80_health_report.sh
+systemctl --user restart cpu-inference-lan-gateway.service
+systemctl --user is-active cpu-inference-lan-gateway.service
 ```
+
+Un riavvio termina il backend caricato. La richiesta successiva ricarica il
+modello selezionato e aggiorna lo stato della sessione.
+
+## Controlli minimi
+
+```bash
+curl -fsS http://127.0.0.1:8080/
+curl -o /dev/null -s -w '%{http_code}\n' http://127.0.0.1:8080/v1/models
+nvidia-smi --query-gpu=name,memory.used --format=csv,noheader
+```
+
+Il secondo comando deve restituire `401` senza token. Per le API, ottenere il
+token solo dal server con `scripts/show-api-token.sh`; non salvarlo in URL,
+repository, log o screenshot.
+
+## Ripristino
+
+Se il servizio non parte, controllare prima sintassi del catalogo, presenza e
+SHA-256 dei GGUF e log del modello in
+`~/.local/state/cpu-inference/<model>.log`. Non avviare direttamente backend
+su porte LAN: il gateway deve restare l’unico listener esposto.
