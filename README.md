@@ -31,8 +31,12 @@ cambio modello.
 DeepSeek V4 Flash IQ2 resta archiviato ma non è un profilo del gateway: DS4 non
 riesce a collocarlo in sicurezza nelle due A4500 da 19 GiB.
 
-La console permette di scegliere modello, prompt di sistema, parametri di
-generazione, seed, stop sequence, contesto, slot, Flash Attention e cache KV.
+La console responsiva usa Alpine.js vendorizzato e funziona offline. Permette di
+scegliere modello, prompt di sistema, parametri di generazione, seed, stop
+sequence, contesto, slot, Flash Attention e cache KV; ogni campo include una
+spiegazione pratica. Conversazioni, bozze e impostazioni sono organizzate per
+chat e persistono soltanto nel `localStorage` del browser, con esportazione JSON
+e cancellazione esplicita.
 
 ## Stato e prestazioni
 

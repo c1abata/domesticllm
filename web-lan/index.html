@@ -1,5 +1,112 @@
 <!doctype html>
-<html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DomesticLLM</title>
-<style>body{margin:0;background:#0c1017;color:#e7edf7;font:16px system-ui}.app{max-width:1120px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center}.badge{color:#8fe3ad}.grid{display:grid;grid-template-columns:310px 1fr;gap:18px}section{background:#151c27;border:1px solid #27344a;border-radius:12px;padding:16px}label{display:block;margin-top:10px;color:#aebed5}input,select,textarea,button{font:inherit;box-sizing:border-box;width:100%;padding:9px;border-radius:7px;border:1px solid #3b4d69;background:#0c1017;color:#eef}textarea{min-height:100px}button{background:#4d86ff;border:0;margin-top:14px;cursor:pointer;font-weight:650}pre{white-space:pre-wrap;min-height:300px;margin:0;line-height:1.5}.small{font-size:.85rem;color:#aebed5}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:720px){.grid{grid-template-columns:1fr}}</style>
-<body><main class="app"><div class="top"><h1>DomesticLLM</h1><span id="status" class="badge">Connessione…</span></div><p id="session" class="small">Stato sessione in caricamento…</p><p class="small">Chat locale in LAN. La web app non richiede login; gli endpoint API /v1 richiedono Bearer token.</p><div class="grid"><section><label>Modello<select id="model"></select></label><label>Prompt di sistema<textarea id="system">Sei un assistente utile, diretto e competente.</textarea></label><label>Temperatura<input id="temperature" type="number" min="0" max="2" step=".05" value="0.7"></label><div class="row"><label>Max token<input id="tokens" type="number" min="1" max="4096" value="1024"></label><label>Top P<input id="topP" type="number" min="0" max="1" step=".05" value="0.95"></label></div><details><summary>Generazione avanzata</summary><div class="row"><label>Seed<input id="seed" type="number" value="-1"></label><label>Top K<input id="topK" type="number" min="0" value="40"></label></div><div class="row"><label>Min P<input id="minP" type="number" min="0" max="1" step=".01" value="0"></label><label>Repeat penalty<input id="repeatPenalty" type="number" min="0" step=".01" value="1"></label></div><div class="row"><label>Presence penalty<input id="presencePenalty" type="number" step=".01" value="0"></label><label>Frequency penalty<input id="frequencyPenalty" type="number" step=".01" value="0"></label></div><label>Stop (una sequenza per riga)<textarea id="stop" placeholder="Opzionale"></textarea></label></details><details><summary>Runtime avanzato</summary><label>Contesto<select id="context"><option>2048</option><option selected>4096</option><option>8192</option><option>16384</option></select></label><label>Slot<select id="parallel"><option>1</option><option>2</option><option>3</option><option>4</option></select></label><label>Flash Attention<select id="flash"><option>auto</option><option>on</option><option>off</option></select></label><label>KV cache<select id="kv"><option>q4_0</option><option selected>q8_0</option><option>f16</option></select></label></details></section><section><pre id="chat"></pre><textarea id="prompt" placeholder="Scrivi un messaggio…"></textarea><button id="send">Invia</button></section></div></main><script>
-const $=id=>document.getElementById(id),chat=$('chat');let messages=[];const show=x=>chat.textContent=x,fmt=x=>Number.isFinite(x)?x.toFixed(1):'—';async function get(p){let r=await fetch(p);if(!r.ok)throw Error(await r.text());return r.json()}function session(state){let s=state.session||{},g=s.last_generation;if(!state.active_model){$('session').textContent='Nessuna sessione GPU attiva';return}$('session').textContent=`Sessione: ${s.requests||0} richieste · ${Math.round(s.elapsed_seconds||0)} s · contesto ${s.runtime?.context||'profilo'}${g?` · prefill ${g.prompt_tokens??'—'} tok a ${fmt(g.prefill_tokens_per_second)} tok/s · generazione ${g.generated_tokens??'—'} tok a ${fmt(g.generation_tokens_per_second)} tok/s`:''}`}async function refresh(){let [models,state]=await Promise.all([get('/ui/models'),get('/ui/status')]);$('model').innerHTML=models.data.map(x=>`<option value="${x.id}" ${x.ready?'':'disabled'}>${x.id}${x.ready?'':' — non disponibile'}</option>`).join('');$('status').textContent=state.active_model?`Attivo: ${state.active_model}`:'Nessun modello caricato';session(state)}async function send(){let prompt=$('prompt').value.trim();if(!prompt)return;messages.push({role:'user',content:prompt});$('prompt').value='';show(messages.map(m=>`${m.role==='user'?'Tu':'Assistente'}: ${m.content}`).join('\n\n')+'\n\nCaricamento…');let stop=$('stop').value.split('\n').map(x=>x.trim()).filter(Boolean),payload={model:$('model').value,messages:[{role:'system',content:$('system').value},...messages],temperature:Number($('temperature').value),top_p:Number($('topP').value),top_k:Number($('topK').value),min_p:Number($('minP').value),repeat_penalty:Number($('repeatPenalty').value),presence_penalty:Number($('presencePenalty').value),frequency_penalty:Number($('frequencyPenalty').value),seed:Number($('seed').value),max_tokens:Number($('tokens').value),runtime:{context:Number($('context').value),parallel:Number($('parallel').value),flash_attention:$('flash').value,kv_cache:$('kv').value}};if(stop.length)payload.stop=stop;try{let r=await fetch('/ui/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),x=await r.json();if(!r.ok)throw Error(x.error?.message||JSON.stringify(x));let answer=x.choices?.[0]?.message?.content||JSON.stringify(x);messages.push({role:'assistant',content:answer});show(messages.map(m=>`${m.role==='user'?'Tu':'Assistente'}: ${m.content}`).join('\n\n'));refresh()}catch(e){show('Errore: '+e.message)}}$('send').onclick=send;$('prompt').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};refresh().catch(e=>show('Errore di connessione: '+e.message));</script></body></html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>DomesticLLM</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235d88e2'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-size='34' font-weight='700' fill='white'%3ED%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app.css">
+  <script defer src="/app.js"></script>
+  <script defer src="/vendor/alpine-3.15.12.min.js"></script>
+</head>
+<body>
+  <div class="shell" x-data="domesticApp" x-init="init()" x-cloak>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">D</span><div><h1>DomesticLLM</h1><p>Inferenza privata sulla rete locale</p></div></div>
+      <div class="connection" :class="connectionClass" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span x-text="connectionLabel">Connessione…</span></div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" :class="mobilePanel === 'history' ? 'mobile-open' : ''">
+        <div class="sidebar-head"><button class="primary full" type="button" @click="newChat()">＋ Nuova chat</button><button class="icon-button mobile-close" type="button" @click="mobilePanel = null" aria-label="Chiudi cronologia">×</button></div>
+        <div class="history-toolbar"><h2>Conversazioni</h2><span x-text="`${chats.length}/30`"></span></div>
+        <nav class="history" aria-label="Cronologia chat">
+          <template x-if="!chats.length"><p class="empty-small">Le conversazioni salvate appariranno qui.</p></template>
+          <template x-for="group in groupedChats" :key="group.label">
+            <section class="history-group">
+              <h3 x-text="group.label"></h3>
+              <template x-for="chat in group.items" :key="chat.id">
+                <div class="history-item" :class="chat.id === activeChatId ? 'active' : ''">
+                  <button class="history-select" type="button" @click="selectChat(chat.id)"><strong x-text="chat.title"></strong><span><span x-text="modelShortName(chat.model)"></span> · <span x-text="formatTime(chat.updatedAt)"></span></span></button>
+                  <button class="history-more" type="button" @click="renameChat(chat.id)" aria-label="Rinomina conversazione">✎</button>
+                  <button class="history-more danger-text" type="button" @click="deleteChat(chat.id)" aria-label="Elimina conversazione">×</button>
+                </div>
+              </template>
+            </section>
+          </template>
+        </nav>
+        <div class="history-footer"><div><button class="secondary compact" type="button" @click="exportHistory()" :disabled="!chats.length">Esporta</button><button class="secondary compact danger-text" type="button" @click="clearHistory()" :disabled="!chats.length">Cancella tutto</button></div><p>Lo storico resta in questo browser e non viene inviato a servizi esterni.</p></div>
+      </aside>
+
+      <main class="chat-panel">
+        <div class="chat-head">
+          <button class="icon-button mobile-only" type="button" @click="mobilePanel = 'history'" aria-label="Apri cronologia">☰</button>
+          <div class="chat-title"><h2 x-text="activeChat?.title || 'Nuova chat'"></h2><p><span x-text="selectedModel?.label || selectedModel?.id || 'Modello non selezionato'"></span><span aria-hidden="true"> · </span><span x-text="sessionSummary"></span></p></div>
+          <button class="secondary settings-toggle" type="button" @click="mobilePanel = mobilePanel === 'settings' ? null : 'settings'" :aria-expanded="mobilePanel === 'settings'">Impostazioni</button>
+        </div>
+
+        <section class="metrics" aria-label="Prestazioni ultima risposta">
+          <div><span>Sessione</span><strong x-text="sessionRequests"></strong></div><div><span>Prefill</span><strong x-text="prefillRate"></strong></div><div><span>Generazione</span><strong x-text="generationRate"></strong></div><div><span>Token prodotti</span><strong x-text="generatedTokens"></strong></div>
+        </section>
+        <div class="notices">
+          <div class="notice error" x-show="errorMessage" x-transition role="alert"><span x-text="errorMessage"></span><button type="button" @click="errorMessage = ''" aria-label="Chiudi errore">×</button></div>
+          <div class="notice warning" x-show="storageWarning" x-transition role="status"><span x-text="storageWarning"></span><button type="button" @click="storageWarning = ''" aria-label="Chiudi avviso">×</button></div>
+        </div>
+
+        <div class="messages" x-ref="messages" aria-live="polite">
+          <div class="welcome" x-show="!activeChat?.messages?.length">
+            <span class="welcome-mark" aria-hidden="true">D</span><h2>Come posso aiutarti?</h2><p>Scegli il modello, configura il comportamento e avvia una conversazione. Le chat vengono salvate localmente.</p>
+            <div class="suggestions"><button type="button" @click="useSuggestion('Analizza questo problema passo per passo e proponi una soluzione concreta.')">Analisi ragionata</button><button type="button" @click="useSuggestion('Scrivi una soluzione tecnica completa, con esempi verificabili.')">Soluzione tecnica</button><button type="button" @click="useSuggestion('Rivedi il seguente testo migliorandone chiarezza e precisione: ')">Revisione testo</button></div>
+          </div>
+          <template x-for="message in activeChat?.messages || []" :key="message.id">
+            <article class="message" :class="message.role"><div class="avatar" x-text="message.role === 'user' ? 'Tu' : 'D'"></div><div class="message-body"><div class="message-meta"><strong x-text="message.role === 'user' ? 'Tu' : 'DomesticLLM'"></strong><time x-text="formatTime(message.at)"></time><button type="button" @click="copyMessage(message.content)" aria-label="Copia messaggio">Copia</button></div><div class="message-content" x-text="message.content"></div></div></article>
+          </template>
+          <article class="message assistant pending" x-show="busy"><div class="avatar">D</div><div class="message-body"><div class="message-meta"><strong>DomesticLLM</strong></div><div class="thinking"><span></span><span></span><span></span><em x-text="busyLabel"></em></div></div></article>
+        </div>
+
+        <form class="composer" @submit.prevent="sendMessage()">
+          <textarea x-ref="composer" x-model="draft" @input="resizeComposer(); persistDraft()" @keydown.enter="handleEnter($event)" maxlength="50000" rows="1" placeholder="Scrivi un messaggio…" aria-label="Messaggio"></textarea>
+          <button class="send" type="submit" :disabled="busy || !draft.trim() || !selectedModelReady" aria-label="Invia messaggio">➤</button>
+          <p><span>Invio: Enter</span><span>A capo: Shift + Enter</span><span x-text="`${draft.length.toLocaleString('it-IT')}/50.000`"></span></p>
+        </form>
+      </main>
+
+      <aside class="settings" :class="mobilePanel === 'settings' ? 'mobile-open' : ''">
+        <div class="settings-head"><div><h2>Impostazioni</h2><p>Valide per questa conversazione</p></div><button class="icon-button mobile-close" type="button" @click="mobilePanel = null" aria-label="Chiudi impostazioni">×</button></div>
+        <div class="settings-scroll">
+          <section class="setting-section">
+            <h3>Modello</h3>
+            <div class="field"><label for="model">Modello di inferenza</label><select id="model" x-model="modelId" @change="onModelChanged()"><template x-for="model in models" :key="model.id"><option :value="model.id" :disabled="!model.ready" x-text="`${model.label || model.id}${model.ready ? '' : ' — non disponibile'}`"></option></template></select><p x-text="selectedModel?.description || 'Il modello viene caricato alla prima richiesta.'"></p><div class="capabilities" x-show="selectedModel?.capabilities?.length"><template x-for="capability in selectedModel?.capabilities || []" :key="capability"><span x-text="capability"></span></template></div></div>
+            <button class="secondary full" type="button" @click="applyRecommendedSettings()" :disabled="!selectedModel">Ripristina valori consigliati</button>
+          </section>
+          <section class="setting-section"><h3>Comportamento</h3><div class="field"><label for="system">Istruzioni di sistema</label><textarea id="system" x-model="systemPrompt" @change="persistChatSettings()" rows="4" maxlength="10000"></textarea><p>Definiscono ruolo, tono e regole dell’assistente per tutta la chat.</p></div></section>
+          <section class="setting-section">
+            <h3>Generazione</h3>
+            <div class="field"><div class="label-row"><label for="temperature">Temperatura</label><output x-text="settings.temperature"></output></div><input id="temperature" type="range" min="0" max="2" step="0.05" x-model.number="settings.temperature" @change="persistChatSettings()"><p>0 produce risposte più prevedibili; valori alti aumentano varietà e rischio di errori.</p></div>
+            <div class="two-fields"><div class="field"><label for="maxTokens">Token massimi</label><input id="maxTokens" type="number" min="1" max="8192" step="1" x-model.number="settings.maxTokens" @change="persistChatSettings()"><p>Limite massimo della risposta; più token richiedono più tempo.</p></div><div class="field"><label for="topP">Top P</label><input id="topP" type="number" min="0" max="1" step="0.01" x-model.number="settings.topP" @change="persistChatSettings()"><p>Limita la scelta al nucleo di probabilità. 0,9–0,95 è un buon intervallo.</p></div></div>
+            <details><summary>Campionamento avanzato</summary><div class="two-fields">
+              <div class="field"><label for="topK">Top K</label><input id="topK" type="number" min="0" max="200" x-model.number="settings.topK" @change="persistChatSettings()"><p>Considera solo i K token più probabili; 0 disattiva il filtro.</p></div>
+              <div class="field"><label for="minP">Min P</label><input id="minP" type="number" min="0" max="1" step="0.01" x-model.number="settings.minP" @change="persistChatSettings()"><p>Scarta token molto meno probabili del migliore; 0 disattiva.</p></div>
+              <div class="field"><label for="seed">Seed</label><input id="seed" type="number" min="-1" x-model.number="settings.seed" @change="persistChatSettings()"><p>-1 usa casualità; un numero fisso aiuta a ripetere l’output.</p></div>
+              <div class="field"><label for="repeatPenalty">Penalità ripetizione</label><input id="repeatPenalty" type="number" min="0" max="2" step="0.01" x-model.number="settings.repeatPenalty" @change="persistChatSettings()"><p>Valori sopra 1 riducono ripetizioni; troppo alto può degradare il testo.</p></div>
+              <div class="field"><label for="presencePenalty">Presence penalty</label><input id="presencePenalty" type="number" min="-2" max="2" step="0.05" x-model.number="settings.presencePenalty" @change="persistChatSettings()"><p>Favorisce argomenti nuovi penalizzando token già comparsi.</p></div>
+              <div class="field"><label for="frequencyPenalty">Frequency penalty</label><input id="frequencyPenalty" type="number" min="-2" max="2" step="0.05" x-model.number="settings.frequencyPenalty" @change="persistChatSettings()"><p>Penalizza in proporzione alla frequenza delle parole già usate.</p></div>
+            </div><div class="field"><label for="stop">Sequenze di stop</label><textarea id="stop" rows="3" x-model="settings.stop" @change="persistChatSettings()" placeholder="Una sequenza per riga"></textarea><p>La risposta termina appena incontra una delle sequenze indicate.</p></div></details>
+          </section>
+          <section class="setting-section">
+            <h3>Runtime</h3><p class="section-help">Cambiare questi valori può riavviare il modello e aumentare il tempo della prima risposta.</p>
+            <div class="two-fields">
+              <div class="field"><label for="context">Contesto</label><select id="context" x-model.number="settings.context" @change="persistChatSettings()"><option value="2048">2.048</option><option value="4096">4.096</option><option value="8192">8.192</option><option value="16384">16.384</option></select><p>Token totali disponibili per cronologia e risposta; valori alti usano più memoria.</p></div>
+              <div class="field"><label for="parallel">Slot paralleli</label><select id="parallel" x-model.number="settings.parallel" @change="persistChatSettings()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select><p>Capacità concorrente del backend; più slot dividono contesto e memoria.</p></div>
+              <div class="field"><label for="flash">Flash Attention</label><select id="flash" x-model="settings.flashAttention" @change="persistChatSettings()"><option value="auto">Automatico</option><option value="on">Attivo</option><option value="off">Disattivo</option></select><p>Ottimizza attenzione e memoria; “Automatico” è la scelta più sicura.</p></div>
+              <div class="field"><label for="kv">Cache KV</label><select id="kv" x-model="settings.kvCache" @change="persistChatSettings()"><option value="q4_0">Q4 — minima memoria</option><option value="q8_0">Q8 — bilanciata</option><option value="f16">F16 — massima precisione</option></select><p>Memorizza il contesto: Q4 usa meno memoria, F16 ne usa di più.</p></div>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <div class="backdrop" x-show="mobilePanel" x-transition.opacity @click="mobilePanel = null"></div>
+  </div>
+</body>
+</html>

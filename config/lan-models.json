@@ -4,6 +4,10 @@
   "models": {
     "dolphin-8b-q4": {
       "engine": "llama", "admitted": true,
+      "label": "Dolphin 8B Q4",
+      "description": "Modello rapido e generalista per chat, scrittura e richieste quotidiane.",
+      "capabilities": ["testo", "rapido"],
+      "ui_defaults": {"context": 16384, "parallel": 2, "flashAttention": "auto", "kvCache": "q8_0", "temperature": 0.7, "maxTokens": 1024, "topP": 0.95},
       "model": "/srv/local-ai/models/Dolphin3.0-Llama3.1-8B-abliterated.Q4_K_M.gguf",
       "sha256": "73da18db1557e19e8ec2d6c1e8ef08e182c735d72f3bd526f6940f4fec96c1cb",
       "port": 18080,
@@ -11,6 +15,10 @@
     },
     "qwen3-coder-30b-ud-q4": {
       "engine": "llama", "admitted": true,
+      "label": "Qwen3 Coder 30B Q4",
+      "description": "Modello specializzato in codice, analisi tecnica e attività agentiche.",
+      "capabilities": ["testo", "codice", "reasoning"],
+      "ui_defaults": {"context": 8192, "parallel": 1, "flashAttention": "auto", "kvCache": "q8_0", "temperature": 0.35, "maxTokens": 2048, "topP": 0.9},
       "model": "/srv/local-ai/models/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf",
       "sha256": "2841aa314d916434860cfb8990347528dcdfe5c350dbcb9d1461dbee88ff2533",
       "port": 18081,
@@ -18,6 +26,10 @@
     },
     "kalidroid-27b-q4-vision": {
       "engine": "llama", "admitted": true,
+      "label": "Kalidroid 27B Q4",
+      "description": "Modello uncensored per chat approfondita; il proiettore vision è installato nel backend.",
+      "capabilities": ["testo", "uncensored", "vision-ready"],
+      "ui_defaults": {"context": 4096, "parallel": 1, "flashAttention": "auto", "kvCache": "q4_0", "temperature": 0.7, "maxTokens": 1536, "topP": 0.95},
       "model": "/home/ale/.local/share/domesticllm/models/ollama/kimocoder/kalidroid-27B-uncensored/latest/model.gguf",
       "sha256": "4c5e2db039e9325ac7724c8846c71356a24ad1cdfa28002d73ecb6be645f9675",
       "projector": "/home/ale/.local/share/domesticllm/models/ollama/kimocoder/kalidroid-27B-uncensored/latest/projector.gguf",

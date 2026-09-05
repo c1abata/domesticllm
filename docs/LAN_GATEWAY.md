@@ -15,8 +15,8 @@ The catalog contains at most three already-installed GGUFs:
 
 - `dolphin-8b-q4`: fast abliterated Dolphin profile on GPU 0;
 - `qwen3-coder-30b-ud-q4`: coding profile split over both RTX A4500 GPUs;
-- `deepseek-v4-flash-iq2`: native DS4 profile with two-GPU tensor parallelism,
-  SSD expert streaming, warm weights, disk KV, and conservative context.
+- `kalidroid-27b-q4-vision`: uncensored Qwen 3.5 profile with its pinned vision
+  projector on GPU 0.
 
 The DeepSeek Q2 profile is retained for a larger-GPU host but is not admitted
 on this server. A native DS4 CUDA baseline with SSD streaming, cold cache,
@@ -27,6 +27,12 @@ stage exceeds the effective 14.16 GiB per-GPU budget. Requests receive HTTP
 Use the web interface to select models, system prompt, temperature, top-p,
 top-k, min-p, seed, repeat/presence/frequency penalties, stop sequences,
 maximum tokens, context, slot count, Flash Attention mode and KV cache type.
+Every field includes concise operational guidance and each model publishes its
+recommended defaults. The responsive Alpine.js interface is fully vendored:
+it makes no CDN request. Chats, drafts, per-chat settings and dated history are
+stored only in browser `localStorage`, capped at 30 conversations and 120 saved
+messages per conversation. The user can rename, delete and export the history
+as JSON; the server does not persist it.
 The same page shows live session status: active model, session elapsed time,
 request count, and measured prefill and generation throughput from the latest
 completed non-streaming response.
@@ -43,7 +49,7 @@ HTTP `429` with `model_busy` and can retry after the active request completes.
 
 The current stable deployment runs on `10.25.13.22` as the user service
 `cpu-inference-lan-gateway.service`. Its source checkout is
-`/home/ale/cpu-inference`; the UI asset is `web-lan/index.html`; persistent
+`/home/ale/cpu-inference`; the UI assets are under `web-lan/`; persistent
 gateway state and the API token stay in `/home/ale/.local/state/cpu-inference`.
 The token has mode `0600` and is displayed locally only by
 `scripts/show-api-token.sh`.

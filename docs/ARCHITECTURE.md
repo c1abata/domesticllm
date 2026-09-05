@@ -15,7 +15,8 @@ Client API con token ─┘       │
   seriale, verifica SHA-256 e telemetria di sessione.
 - `config/lan-models.json`: catalogo massimo di tre profili e relativi argomenti
   runtime; nessun parametro ROCm/CUDA arbitrario arriva dalla UI.
-- `web-lan/index.html`: chat locale senza login e controlli consentiti.
+- `web-lan/`: chat responsiva senza login, Alpine.js locale, descrizioni dei
+  parametri e storico persistente esclusivamente nel browser.
 - `deploy/cpu-inference-lan-gateway.service`: unità user systemd.
 
 ## Ciclo di una richiesta
