@@ -16,13 +16,14 @@
       "port": 18081,
       "args": ["--ctx-size", "8192", "--threads", "16", "--threads-batch", "32", "--parallel", "1", "--cont-batching", "--n-gpu-layers", "999", "--split-mode", "layer", "--tensor-split", "1,1", "--main-gpu", "0", "--flash-attn", "auto", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--metrics", "--slots", "--no-ui"]
     },
-    "deepseek-v4-flash-iq2": {
-      "engine": "ds4", "admitted": false,
-      "reason": "Measured on 2x RTX A4500: native DS4 cannot place the remaining balanced stage inside the effective 14.16 GiB per-GPU budget, even with SSD streaming.",
-      "model": "/srv/local-ai/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf",
-      "sha256": "a02f4e9ed0f7cd4d51b79ccb21e72a9fd17b5104a14361c9a333798d4e6ea5c8",
+    "kalidroid-27b-q4-vision": {
+      "engine": "llama", "admitted": true,
+      "model": "/home/ale/.local/share/domesticllm/models/ollama/kimocoder/kalidroid-27B-uncensored/latest/model.gguf",
+      "sha256": "4c5e2db039e9325ac7724c8846c71356a24ad1cdfa28002d73ecb6be645f9675",
+      "projector": "/home/ale/.local/share/domesticllm/models/ollama/kimocoder/kalidroid-27B-uncensored/latest/projector.gguf",
+      "projector_sha256": "5ac423f8a29059dc24e51bc6a43e9380dcd57a9347f28b62591e0b3f60b7081c",
       "port": 18082,
-      "args": ["--cuda", "--gpu-devices", "0,1", "--gpu-vram", "17,17", "--cuda-tensor-parallel", "--ctx", "8192", "--tokens", "2048", "--threads", "16", "--power", "100", "--ssd-streaming", "--ssd-streaming-cold", "--ssd-streaming-cache-experts", "8GB", "--warm-weights", "--prefill-chunk", "2048", "--kv-disk-dir", "/home/ale/.local/state/cpu-inference/kv/deepseek-v4-flash-iq2", "--kv-disk-space-mb", "8192"]
+      "args": ["--ctx-size", "4096", "--threads", "16", "--threads-batch", "32", "--parallel", "1", "--cont-batching", "--n-gpu-layers", "999", "--split-mode", "none", "--main-gpu", "0", "--flash-attn", "auto", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0", "--mmproj", "/home/ale/.local/share/domesticllm/models/ollama/kimocoder/kalidroid-27B-uncensored/latest/projector.gguf", "--metrics", "--slots", "--no-ui"]
     }
   }
 }

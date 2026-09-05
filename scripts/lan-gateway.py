@@ -87,15 +87,19 @@ class Gateway:
 
     @staticmethod
     def verify_model(profile: dict[str, Any]) -> None:
-        model, expected = Path(profile["model"]), profile.get("sha256", "")
-        if not model.is_file() or len(expected) != 64:
-            raise RuntimeError("model file or pinned SHA-256 is missing")
-        digest = hashlib.sha256()
-        with model.open("rb") as source:
-            for block in iter(lambda: source.read(1024 * 1024), b""):
-                digest.update(block)
-        if digest.hexdigest() != expected:
-            raise RuntimeError("model SHA-256 does not match the catalog")
+        artifacts = [(profile.get("model"), profile.get("sha256"), "model")]
+        if profile.get("projector"):
+            artifacts.append((profile.get("projector"), profile.get("projector_sha256"), "projector"))
+        for raw_path, expected, label in artifacts:
+            path = Path(str(raw_path))
+            if not path.is_file() or not isinstance(expected, str) or len(expected) != 64:
+                raise RuntimeError(f"{label} file or pinned SHA-256 is missing")
+            digest = hashlib.sha256()
+            with path.open("rb") as source:
+                for block in iter(lambda: source.read(1024 * 1024), b""):
+                    digest.update(block)
+            if digest.hexdigest() != expected:
+                raise RuntimeError(f"{label} SHA-256 does not match the catalog")
 
     def stop(self) -> None:
         if self.process and self.process.poll() is None:

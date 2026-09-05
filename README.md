@@ -25,8 +25,11 @@ cambio modello.
 - `dolphin-8b-q4`: modello uncensored rapido su GPU 0.
 - `qwen3-coder-30b-ud-q4`: modello coding principale, distribuito sulle due
   RTX A4500.
-- `deepseek-v4-flash-iq2`: resta nel catalogo, ma non è ammesso su questo host:
-  il runtime DS4 non riesce a collocarlo in sicurezza nelle due A4500 da 19 GiB.
+- `kalidroid-27b-q4-vision`: Qwen 3.5 uncensored con projector vision, su GPU 0
+  con contesto iniziale da 4K.
+
+DeepSeek V4 Flash IQ2 resta archiviato ma non è un profilo del gateway: DS4 non
+riesce a collocarlo in sicurezza nelle due A4500 da 19 GiB.
 
 La console permette di scegliere modello, prompt di sistema, parametri di
 generazione, seed, stop sequence, contesto, slot, Flash Attention e cache KV.

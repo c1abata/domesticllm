@@ -6,7 +6,7 @@ Browser senza login ─┐
 Client API con token ─┘       │
                               ├─ 127.0.0.1:18080  Dolphin 8B / llama.cpp
                               ├─ 127.0.0.1:18081  Qwen Coder 30B / llama.cpp
-                              └─ 127.0.0.1:18082  DS4 DeepSeek / non ammesso
+                              └─ 127.0.0.1:18082  Kalidroid 27B Vision / llama.cpp
 ```
 
 ## Componenti
