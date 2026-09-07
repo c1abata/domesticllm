@@ -1,0 +1,35 @@
+[harness]
+default_profile = "qwen"
+state_dir = "~/.local/state/domesticllm-harness"
+max_history_messages = 24
+
+# Each profile may point to a different DomesticLLM/llama.cpp/DS4 server.
+# Do not list a capability unless that served model was tested for it.
+
+[models.qwen]
+base_url = "http://100.64.0.10:8080"
+model = "qwen3-coder"
+api_key_env = "DOMESTICLLM_QWEN_KEY"
+capabilities = ["code", "general"]
+timeout_seconds = 300
+max_tokens = 2048
+temperature = 0.15
+
+[models.deepseek]
+base_url = "http://100.64.0.10:8082"
+model = "deepseek-v4-flash"
+api_key_env = "DOMESTICLLM_DEEPSEEK_KEY"
+capabilities = ["reasoning"]
+timeout_seconds = 900
+max_tokens = 1536
+temperature = 0.10
+
+# Optional specialist profile. Delete it when the endpoint does not exist.
+[models.security]
+base_url = "http://100.64.0.10:8083"
+model = "dolphin3-cyber"
+api_key_env = "DOMESTICLLM_SECURITY_KEY"
+capabilities = ["security"]
+timeout_seconds = 300
+max_tokens = 1536
+temperature = 0.10
